@@ -7,39 +7,7 @@ class CommandParser
     spec = spec'
     parent = parent'
 
-  fun box flag_name(name: String): (FlagSpec box | None) =>
-    for f in spec.flags.values() do
-      if f.has_name(name) then
-        return f
-      end
-    end
-    match parent
-    | let p: CommandParser box => p.flag_name(name)
-    else
-      None
-    end
-
-  fun box flag_short(short: U8): (FlagSpec box | None) =>
-    for f in spec.flags.values() do
-      if f.has_short(short) then
-        return f
-      end
-    end
-    match parent
-    | let p: CommandParser box => p.flag_short(short)
-    else
-      None
-    end
-
-  fun box child_command(name: String): (CommandSpec box | None) =>
-    for c in spec.commands.values() do
-      if c.name == name then
-        return c
-      end
-    end
-    None
-
-  fun box parse(
+ fun box parse(
     argv: Array[String] box,
     envs: (Array[String] box | None) = None): (Command | SyntaxError)
   =>
@@ -85,6 +53,38 @@ class CommandParser
     end
     Command(spec, flags, args)
 
+  fun box flag_name(name: String): (FlagSpec box | None) =>
+    for f in spec.flags.values() do
+      if f.has_name(name) then
+        return f
+      end
+    end
+    match parent
+    | let p: CommandParser box => p.flag_name(name)
+    else
+      None
+    end
+
+  fun box flag_short(short: U8): (FlagSpec box | None) =>
+    for f in spec.flags.values() do
+      if f.has_short(short) then
+        return f
+      end
+    end
+    match parent
+    | let p: CommandParser box => p.flag_short(short)
+    else
+      None
+    end
+
+  fun box child_command(name: String): (CommandSpec box | None) =>
+    for c in spec.commands.values() do
+      if c.name == name then
+        return c
+      end
+    end
+    None
+
   fun box parse_long_flag(
     token: String,
     args: Array[String] ref,
@@ -111,14 +111,15 @@ class CommandParser
   =>
   """
     if 'f' requires an argument
-      -ffoo => -f has argument foo
-      -f foo => -f has argument foo
-      -f=foo => -f has argument foo
+      -fFoo => -f has argument Foo
+      -f=Foo => -f has argument Foo
+      -f Foo => -f has argument Foo
     else
-      -f=foo => -f has argument foo
+      -f=Foo => -f has argument foo
     -abc => flags a, b, c.
-    -abc=foo => flags a, b, c. c has argument foo.
-    -abc foo => flags a, b, c. c has argument foo iff its arg is required.
+    -abcFoo => flags a, b, c. c has argument Foo iff its arg is required.
+    -abc=Foo => flags a, b, c. c has argument Foo.
+    -abc Foo => flags a, b, c. c has argument Foo iff its arg is required.
   """
     let parts = token.split("=")
     let shorts = (try parts(0) else "" end).clone()
@@ -126,7 +127,7 @@ class CommandParser
 
     let flags: Array[Flag] ref = flags.create()
     while shorts.size() > 0 do
-      let c = try shorts.shift() else 0 end  // Should never be 0
+      let c = try shorts.shift() else 0 end  // Should never error since checked
       match flag_short(c)
       | let fs: FlagSpec box =>
         if fs.typ.requires_arg() and (shorts.size() > 0) then
@@ -137,7 +138,8 @@ class CommandParser
             return SyntaxError(short_string(c), "ambiguous args for short flag")
           end
         end
-        match FlagParser.parse(fs, farg, args, vars)
+        let arg = if shorts.size() == 0 then farg else None end
+        match FlagParser.parse(fs, arg, args, vars)
         | let f: Flag => flags.push(f)
         | let se: SyntaxError => return se
         end
