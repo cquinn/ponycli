@@ -1,65 +1,76 @@
 """
-This package adds the notion of commands that are specified as a hierarchy.
-Inspired by the Golang Kingpin: https://github.com/alecthomas/kingpin
+This package implements command line parsing with the notion of commands that are specified as a hierarchy.
+See RFC-xxx for more details.
 
-General CLI form supported:
-  <root-command> [[<flags>] [<command>]]... [<flags>] [<args>]
-  <command> ::= <alphanum_word>
-  <alphanum_word> ::= <alphachar>[<alphachar>|<numchar>|'_'|'-']
-  <flags> ::= <flag>...
-  <flag> ::= <longflag> | <shortflagset>
-  <longflag> ::= '--'<alphanum_word>[=<arg> | ' '<arg>]
-  <shortflagset> := '-'<alphachar>[<alphachar>]...[=<arg> | ' '<arg>]
-  <args> ::= <arg>...
-  <arg> := <boolarg> | <intarg> | <floatarg> | <stringarg>
-  <boolarg> := 'true' | 'false'
-  <intarg> := ['-'] <numchar>...
-  <floatarg> ::= ['-'] <numchar>... ['.' <numchar>...]
-  <stringarg> ::= <anychar>
+The general EBNF of the command line looks like:
+  command_line ::= root_command (flag* command*)* (flag | arg)*
+  command ::= alphanum_word
+  alphanum_word ::= alphachar(alphachar | numchar | '_' | '-')*
+  flag ::= longflag | shortflagset
+  longflag ::= '--'alphanum_word['='arg | ' 'arg]
+  shortflagset := '-'alphachar[alphachar]...['='arg | ' 'arg]
+  arg := boolarg | intarg | floatarg | stringarg
+  boolarg := 'true' | 'false'
+  intarg> := ['-'] numchar...
+  floatarg ::= ['-'] numchar... ['.' numchar...]
+  stringarg ::= anychar
 
 Some Examples:
   usage: chat [<flags>] <command> [<flags>] [<args> ...]
 """
+use col = "collections"
+
 
 class CommandSpec
-  let name: String
-  let descr: String
-  let flags: Array[FlagSpec box] = flags.create()
+  """
+  CommandSpec describes the specification of a root or child command. Each
+  command has the following attributes:
 
-  // TODO: maybe enforce at most one of these two:
-  let commands: Array[CommandSpec box] = commands.create()
+  - a name: a simple string token that identifies the command.
+  - a fullname: for child commands this name includes the /-separated path from the root.
+  - a description: used in the syntax message.
+  - a map of flags: the valid flags for this command.
+  - a Map of child commands.
+  - or
+  - an Array of arguments.
+  """
+  let name: String
+  let fullname: String
+  let descr: String
+  let flags: col.Map[String, FlagSpec box] = flags.create()
+
+  // A command can have sub-commands or args, but not both.
+  let commands: col.Map[String, CommandSpec box] = commands.create()
   let args: Array[ArgSpec box] = args.create()
 
-  // Used for fullname rendering only
-  let _parent: (CommandSpec box | None)
-
-  new create(name': String, descr': String = "", parent: (CommandSpec | None) = None) =>
+  new create(name': String, descr': String = "") =>
     name = name'
+    fullname = name'
     descr = descr'
-    _parent = parent
     // TODO: verify name follows rules?
 
-  fun ref command(name': String, descr': String = ""): CommandSpec =>
-    let c = CommandSpec(name', descr', this)
-    commands.push(c)
-    c
+  new _create(name': String, fullname': String, descr': String) =>
+    name = name'
+    fullname = fullname'
+    descr = descr'
+    // TODO: verify name follows rules?
 
   fun ref flag(name': String, typ': ValueType, descr': String = ""): FlagSpec =>
     let f = FlagSpec(name', typ', descr')
-    flags.push(f)
+    flags.update(name', f)
     f
 
-  fun ref arg(name': String, typ': ValueType, descr': String = ""): ArgSpec =>
+  fun ref command(name': String, descr': String = ""): CommandSpec? =>
+    if args.size() > 0 then error end
+    let c = CommandSpec._create(name', name + "/" + name', descr')
+    commands.update(name', c)
+    c
+
+  fun ref arg(name': String, typ': ValueType, descr': String = ""): ArgSpec? =>
+    if commands.size() > 0 then error end
     let a = ArgSpec(name', typ', descr')
     args.push(a)
     a
-
-  fun box fullname(): String =>
-    match _parent
-    | let p: CommandSpec box => p.fullname() + "/" + name
-    else
-      name
-    end
 
   fun box string(): String =>
     let s: String iso = name.clone()
@@ -77,26 +88,30 @@ class CommandSpec
     end
     s
 
+
 class FlagSpec
+  """
+  FlagSpec describes the specification of a flag.
+  """
   let name: String
   let typ: ValueType
   let descr: String
   var _required: Bool = true
-  var _default: Value // | None
+  var default: Value
   var _short: (U8 | None) = None
 
   new create(name': String, typ': ValueType, descr': String) =>
     name = name'
     typ = typ'
     descr = descr'
-    _default = Type.default(typ)
+    default = Type.default(typ)
 
-  fun ref optional(default: Value): FlagSpec^ ? =>
-    if not (Type.of(default) is typ) then
+  fun ref optional(default': Value): FlagSpec^ ? =>
+    if not (Type.of(default') is typ) then
       error
     end
     _required = false
-    _default = default
+    default = default'
     this
 
   fun ref short(sh: U8): FlagSpec^ =>
@@ -116,7 +131,11 @@ class FlagSpec
   fun string(): String =>
     "--" + name + "[" + typ.string() + "]"
 
+
 class ArgSpec
+  """
+  ArgSpec describes the specification of a positional argument.
+  """
   let name: String
   let typ: ValueType
   let descr: String
@@ -140,25 +159,23 @@ class ArgSpec
     name + "[" + typ.string() + "]"
 
 
+trait ArgRequirer
+  fun requires_arg(): Bool => true
+  fun default_arg(): String => ""
+
 primitive BoolType
   fun string(): String => "Bool"
   fun requires_arg(): Bool => false
   fun default_arg(): String => "true"
 
-primitive StringType
+primitive StringType is ArgRequirer
   fun string(): String => "String"
-  fun requires_arg(): Bool => true
-  fun default_arg(): String => ""
 
-primitive I64Type
+primitive I64Type is ArgRequirer
   fun string(): String => "I64"
-  fun requires_arg(): Bool => true
-  fun default_arg(): String => ""
 
-primitive F64Type
+primitive F64Type is ArgRequirer
   fun string(): String => "F64"
-  fun requires_arg(): Bool => true
-  fun default_arg(): String => ""
 
 type ValueType is
   ( BoolType

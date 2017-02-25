@@ -1,23 +1,19 @@
-use c = "collections"
+use col = "collections"
 
 class box Command
   let spec: CommandSpec box
-  let flags: c.Map[String, Flag] = flags.create()
-  let args: c.Map[String, Arg] = args.create()
+  let flags: col.Map[String, Flag]
+  let args: col.Map[String, Arg]
 
-  new create(spec': CommandSpec box, flaga: Array[Flag] box,
-    arga: Array[Arg] box)
-  =>
-    spec = spec'
-    for f in flaga.values() do
-      try flags.insert(f.spec.name, f) end
-    end
-    for a in arga.values() do
-      try args.insert(a.spec.name, a) end
-    end
+  new create(spec': CommandSpec box, flags': col.Map[String, Flag],
+      args': col.Map[String, Arg])
+    =>
+      spec = spec'
+      flags = flags'
+      args = args'
 
   fun string(): String =>
-    let s: String iso = spec.fullname().clone()
+    let s: String iso = spec.fullname.clone()
     for f in flags.values() do
       s.append(" ")
       s.append(f.string())
@@ -27,6 +23,7 @@ class box Command
       s.append(a.string())
     end
     s
+
 
 class box Flag
   let spec: FlagSpec box
@@ -39,6 +36,7 @@ class box Flag
   fun string(): String =>
     spec.string() + "=" + value.string()
 
+
 class box Arg
   let spec: ArgSpec box
   let value: Value
@@ -49,5 +47,6 @@ class box Arg
 
   fun string(): String =>
     "(" + spec.string() + "=)" + value.string()
+
 
 type Value is (Bool | String | I64 | F64)
