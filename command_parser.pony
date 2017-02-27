@@ -75,7 +75,7 @@ class CommandParser
     let parts = token.split("=")
     let name = try parts(0) else "???" end
     let farg = try parts(1) else None end
-    match _flag_name(name)
+    match _flag_with_name(name)
     | let fs: FlagSpec box => FlagParser.parse(fs, farg, args, vars)
     | None => SyntaxError(name, "unknown long flag")
     else
@@ -94,10 +94,10 @@ class CommandParser
       -f Foo => -f has argument Foo
     else
       -f=Foo => -f has argument foo
-    -abc => flags a, b, c.
-    -abcFoo => flags a, b, c. c has argument Foo iff its arg is required.
-    -abc=Foo => flags a, b, c. c has argument Foo.
-    -abc Foo => flags a, b, c. c has argument Foo iff its arg is required.
+      -abc => flags a, b, c.
+      -abcFoo => flags a, b, c. c has argument Foo iff its arg is required.
+      -abc=Foo => flags a, b, c. c has argument Foo.
+      -abc Foo => flags a, b, c. c has argument Foo iff its arg is required.
     """
     let parts = token.split("=")
     let shorts = (try parts(0) else "" end).clone()
@@ -106,10 +106,11 @@ class CommandParser
     let flags: Array[Flag] ref = flags.create()
     while shorts.size() > 0 do
       let c = try shorts.shift() else 0 end  // Should never error since checked
-      match _flag_short(c)
+      match _flag_with_short(c)
       | let fs: FlagSpec box =>
-        if fs.typ.requires_arg() and (shorts.size() > 0) then
-          if farg is None then  // consume the remainder of the shorts for farg
+        if fs.requires_arg() and (shorts.size() > 0) then
+          // flag needs args, so consume the remainder of the shorts for farg
+          if farg is None then
             farg = shorts.clone()
             shorts.truncate(0)
           else
@@ -155,26 +156,26 @@ class CommandParser
     end
     None
 
-  fun box _flag_name(name: String): (FlagSpec box | None) =>
+  fun box _flag_with_name(name: String): (FlagSpec box | None) =>
     for f in spec.flags.values() do
       if f.has_name(name) then
         return f
       end
     end
     match parent
-    | let p: CommandParser box => p._flag_name(name)
+    | let p: CommandParser box => p._flag_with_name(name)
     else
       None
     end
 
-  fun box _flag_short(short: U8): (FlagSpec box | None) =>
+  fun box _flag_with_short(short: U8): (FlagSpec box | None) =>
     for f in spec.flags.values() do
       if f.has_short(short) then
         return f
       end
     end
     match parent
-    | let p: CommandParser box => p._flag_short(short)
+    | let p: CommandParser box => p._flag_with_short(short)
     else
       None
     end
@@ -189,26 +190,28 @@ primitive FlagParser
     args: Array[String] ref,
     vars: (Array[String] box | None) = None): (Flag | SyntaxError)
   =>
-    var arg = match farg
-      | (let fn: None) if spec.typ.requires_arg() => try args.shift() else None end
+    // Grab the flag-arg if provided, else consume an arg if one is required.
+    let arg = match farg
+      | (let fn: None) if spec.requires_arg() => try args.shift() else None end
       else
         farg
       end
-    arg = match arg
-    | (let fn: None) if not spec.typ.requires_arg() => spec.typ.default_arg()
-    else
-      arg
-    end
+    // Now convert the arg to Type, detecting missing or mis-typed args
     match arg
     | let a: String =>
       match ValueParser.parse(spec.typ, a)
       | let v: Value => Flag(spec, v)
       | let se: SyntaxError => se
       else
-          SyntaxError(a, "Pony: shouldn't allow this")
+          // TODO: Ponyc should know we've covered all match cases above
+          SyntaxError(a, "Pony: shouldn't need this")
       end
     else
-      SyntaxError(spec.name, "missing arg for flag")
+      if not spec.requires_arg() then
+        Flag(spec, spec.default_arg())
+      else
+        SyntaxError(spec.name, "missing arg for flag")
+      end
     end
 
 
@@ -218,6 +221,7 @@ primitive ArgParser
     | let v: Value => Arg(spec, v)
     | let se: SyntaxError => se
     else
+        // TODO: Ponyc should know we've covered all match cases above
         SyntaxError(arg, "Pony: shouldn't allow this")
     end
 
@@ -231,6 +235,7 @@ primitive ValueParser
       | let f: F64Type => arg.f64()
       | let i: I64Type => arg.i64()
       else
+        // TODO: Ponyc should know we've covered all match cases above
         SyntaxError(arg, "Pony: shouldn't allow this: unknown value type " + typ.string())
       end
     else

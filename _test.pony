@@ -21,8 +21,9 @@ class iso _TestMinimal is UnitTest
   fun name(): String => "ponycli/minimal"
 
   fun apply(h: TestHelper) ? =>
-    let cs = CommandSpec("minimal")
-    cs.flag("aflag", BoolType)
+    let cs = CommandSpec("minimal", "")
+      .>flag("aflag", BoolType, "")
+
     h.assert_eq[String]("minimal", cs.name)
 
     let args: Array[String] = ["ignored", "--aflag=true"]
@@ -248,46 +249,43 @@ class iso _TestChatAll is UnitTest
 
 primitive _Fixtures
 
-  fun bools_cli_spec(): CommandSpec box =>
+  fun bools_cli_spec(): CommandSpec box ? =>
     """
     Builds and returns the spec for a CLI with four bool flags.
     """
-    let cs = CommandSpec("bools", "a sample CLI with four bool flags")
-    cs.flag("a", BoolType).short('a')
-    cs.flag("b", BoolType).short('b')
-    cs.flag("c", BoolType).short('c')
-    cs.flag("d", BoolType).short('d')
-    cs
+    CommandSpec("bools", "a sample CLI with four bool flags")
+      .>flag("a", BoolType where short = 'a')
+      .>flag("b", BoolType where short = 'b')
+      .>flag("c", BoolType where short = 'c')
+      .>flag("d", BoolType where short = 'd')
 
   fun shorts_cli_spec(): CommandSpec box ? =>
     """
     Builds and returns the spec for a CLI with short flags of each type.
     """
-    let cs = CommandSpec("shorts", "a sample program with various short flags")
-    cs.flag("boolr", BoolType).short('B')
-    cs.flag("boolo", BoolType).short('b').optional(true)
-    cs.flag("stringr", StringType).short('S')
-    cs.flag("stringo", StringType).short('s').optional("astring")
-    cs.flag("intr", I64Type).short('I')
-    cs.flag("into", I64Type).short('i').optional(I64(42))
-    cs.flag("floatr", F64Type).short('F')
-    cs.flag("floato", F64Type).short('f').optional(F64(42.0))
-    cs
+    CommandSpec("shorts", "a sample program with various short flags")
+      .>flag("boolr", BoolType where short = 'B')
+      .>flag("boolo", BoolType where short = 'b', default=true)
+      .>flag("stringr", StringType where short = 'S')
+      .>flag("stringo", StringType where short = 's', default="astring")
+      .>flag("intr", I64Type where short = 'I')
+      .>flag("into", I64Type where short = 'i', default=I64(42))
+      .>flag("floatr", F64Type where short = 'F')
+      .>flag("floato", F64Type where short = 'f', default=F64(42.0))
 
   fun chat_cli_spec(): CommandSpec box ? =>
     """
     Builds and returns the spec for a sample chat client's CLI.
     """
     let cs = CommandSpec("chat", "sample chat program")
-    cs.flag("admin", BoolType, "chat as admin").optional(false)
-    cs.flag("name", StringType, "your name").short('n')
-    cs.flag("volume", F64Type, "chat volume").short('v')
+      .>flag("admin", BoolType, "chat as admin" where default=false)
+      .>flag("name", StringType, "your name" where short='n')
+      .>flag("volume", F64Type, "chat volume" where short='v')
 
     let say = cs.command("say", "say something")
     say.arg("words", StringType)
 
     let emote = cs.command("emote")
     emote.arg("emotion", StringType, "emotion to send")
-    emote.flag("speed", F64Type, "how fast to play emotion").optional(F64(1.0))
-
+    emote.flag("speed", F64Type, "how fast to play emotion" where default=F64(1.0))
     cs

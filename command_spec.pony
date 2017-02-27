@@ -43,34 +43,34 @@ class CommandSpec
   let commands: col.Map[String, CommandSpec box] = commands.create()
   let args: Array[ArgSpec box] = args.create()
 
-  new create(name': String, descr': String = "") =>
+  new create(name': String, descr': String) =>
     name = name'
     fullname = name'
     descr = descr'
-    // TODO: verify name follows rules?
+    // TODO: error of name is not alpha_num?
 
-  new _create(name': String, fullname': String, descr': String) =>
+  new _subcommand(parent: CommandSpec, name': String, descr': String) =>
     name = name'
-    fullname = fullname'
+    fullname = parent.name + "/" + name'
     descr = descr'
-    // TODO: verify name follows rules?
+    // TODO: error if name is not alpha_num?
 
-  fun ref flag(name': String, typ': ValueType, descr': String = ""): FlagSpec =>
-    let f = FlagSpec(name', typ', descr')
-    flags.update(name', f)
-    f
-
-  fun ref command(name': String, descr': String = ""): CommandSpec? =>
+  fun ref command(name': String, descr': String = ""): CommandSpec ? =>
     if args.size() > 0 then error end
-    let c = CommandSpec._create(name', name + "/" + name', descr')
-    commands.update(name', c)
+    let c = _subcommand(this, name', descr')
+    commands.update(c.name, c)
     c
 
-  fun ref arg(name': String, typ': ValueType, descr': String = ""): ArgSpec? =>
+  fun ref flag(name': String, typ': ValueType, descr': String = "",
+    short: (U8 | None) = None, default: (Value|None) = None) ?
+  =>
+    let f = FlagSpec(name', typ', descr', short, default)
+    flags.update(f.name, f)
+
+  fun ref arg(name': String, typ': ValueType, descr': String="", default: (Value|None) = None) ? =>
     if commands.size() > 0 then error end
-    let a = ArgSpec(name', typ', descr')
+    let a = ArgSpec(name', typ', descr', default)
     args.push(a)
-    a
 
   fun box string(): String =>
     let s: String iso = name.clone()
@@ -96,33 +96,41 @@ class FlagSpec
   let name: String
   let typ: ValueType
   let descr: String
-  var _required: Bool = true
-  var default: Value
-  var _short: (U8 | None) = None
+  let short: (U8 | None)
+  let default: Value
+  let required: Bool
 
-  new create(name': String, typ': ValueType, descr': String) =>
+  new create(name': String, typ': ValueType, descr': String,
+    short': (U8 | None), default': (Value | None)) ?
+  =>
     name = name'
     typ = typ'
     descr = descr'
-    default = Type.default(typ)
-
-  fun ref optional(default': Value): FlagSpec^ ? =>
-    if not (Type.of(default') is typ) then
-      error
+    short = short'
+    match default'
+      | None =>
+        default = typ.default()
+        required = true
+    else
+      if not (Type.of(default') is typ') then error end
+      default = default' as Value
+      required = false
     end
-    _required = false
-    default = default'
-    this
 
-  fun ref short(sh: U8): FlagSpec^ =>
-    _short = sh
-    this
+  // Other than bools, all flags require args.
+  fun box requires_arg(): Bool =>
+    match typ |(let b: BoolType) => false else true end
+    // TODO: why can't we match on just type? |BoolType=>...
+
+  // Used for bool flags to get the true arg when flag is present w/o arg
+  fun default_arg(): Value =>
+    match typ |(let b: BoolType) => true else false end
 
   fun box has_name(nm: String): Bool =>
     nm == name
 
   fun box has_short(sh: U8): Bool =>
-    match _short
+    match short
     | let ss: U8 => sh == ss
     else
       false
@@ -139,43 +147,42 @@ class ArgSpec
   let name: String
   let typ: ValueType
   let descr: String
-  var _required: Bool = true
-  var _default: Value = false
+  let default: Value
+  let required: Bool
 
-  new create(name': String, typ': ValueType, descr': String) =>
+  new create(name': String, typ': ValueType, descr': String, default': (Value|None)) ? =>
     name = name'
     typ = typ'
     descr = descr'
-
-  fun ref optional(default: Value): ArgSpec^ ? =>
-    if not (Type.of(default) is typ) then
-      error
+    match default'
+      | None =>
+        default = typ.default() // Has the right type, but won't be used.
+        required = true
+    else
+      if not (Type.of(default') is typ') then error end
+      default = default' as Value
+      required = false
     end
-    _required = false
-    _default = default
-    this
 
   fun string(): String =>
     name + "[" + typ.string() + "]"
 
 
-trait ArgRequirer
-  fun requires_arg(): Bool => true
-  fun default_arg(): String => ""
-
 primitive BoolType
   fun string(): String => "Bool"
-  fun requires_arg(): Bool => false
-  fun default_arg(): String => "true"
+  fun default(): Value => false
 
-primitive StringType is ArgRequirer
+primitive StringType
   fun string(): String => "String"
+  fun default(): Value => ""
 
-primitive I64Type is ArgRequirer
+primitive I64Type
   fun string(): String => "I64"
+  fun default(): Value => I64(0)
 
-primitive F64Type is ArgRequirer
+primitive F64Type
   fun string(): String => "F64"
+  fun default(): Value => F64(0.0)
 
 type ValueType is
   ( BoolType
@@ -184,24 +191,14 @@ type ValueType is
   | F64Type)
 
 primitive Type
-  fun of(v: Value): ValueType =>
+  fun of(v: (Value|None)): (ValueType|None) =>
     match v
     | let b: Bool => BoolType
     | let s: String => StringType
     | let i: I64 => I64Type
     | let f: F64 => F64Type
+    | None => None
     else
       // TODO: Pony shouldn't hit this
       BoolType // None?
-    end
-
-  fun default(typ: ValueType): Value =>
-    match typ
-    | BoolType => false
-    | StringType => ""
-    | I64Type => I64(0)
-    | F64Type => F64(0.0)
-    else
-      // TODO: Pony shouldn't hit this
-      false // None?
     end
