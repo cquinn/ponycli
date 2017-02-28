@@ -23,54 +23,54 @@ use col = "collections"
 
 class CommandSpec
   """
-  CommandSpec describes the specification of a root or child command. Each
+  CommandSpec describes the specification of a parent or leaf command. Each
   command has the following attributes:
 
   - a name: a simple string token that identifies the command.
-  - a fullname: for child commands this name includes the /-separated path from the root.
   - a description: used in the syntax message.
   - a map of flags: the valid flags for this command.
-  - a Map of child commands.
-  - or
-  - an Array of arguments.
+  - one of:
+     - a Map of child commands.
+     - an Array of arguments.
   """
   let name: String
-  let fullname: String
   let descr: String
   let flags: col.Map[String, FlagSpec box] = flags.create()
 
-  // A command can have sub-commands or args, but not both.
+  // A parent commands can have sub-commands; leaf commands can have args.
   let commands: col.Map[String, CommandSpec box] = commands.create()
   let args: Array[ArgSpec box] = args.create()
 
-  new create(name': String, descr': String) =>
+  new parent(name': String, descr': String = "",
+    flags': Array[FlagSpec] box = Array[FlagSpec](),
+    commands': Array[CommandSpec] box = Array[CommandSpec]())
+  =>
     name = name'
-    fullname = name'
     descr = descr'
     // TODO: error of name is not alpha_num?
+    for f in flags'.values() do
+      flags.update(f.name, f)
+    end
+    for c in commands'.values() do
+      commands.update(c.name, c)
+    end
 
-  new _subcommand(parent: CommandSpec, name': String, descr': String) =>
-    name = name'
-    fullname = parent.name + "/" + name'
-    descr = descr'
-    // TODO: error if name is not alpha_num?
-
-  fun ref command(name': String, descr': String = ""): CommandSpec ? =>
-    if args.size() > 0 then error end
-    let c = _subcommand(this, name', descr')
-    commands.update(c.name, c)
-    c
-
-  fun ref flag(name': String, typ': ValueType, descr': String = "",
-    short: (U8 | None) = None, default: (Value|None) = None) ?
+  new leaf(name': String, descr': String = "",
+    flags': Array[FlagSpec] box = Array[FlagSpec](),
+    args': Array[ArgSpec] box = Array[ArgSpec]())
   =>
-    let f = FlagSpec(name', typ', descr', short, default)
-    flags.update(f.name, f)
+    name = name'
+    descr = descr'
+    // TODO: error of name is not alpha_num?
+    for f in flags'.values() do
+      flags.update(f.name, f)
+    end
+    for a in args'.values() do
+      args.push(a)
+    end
 
-  fun ref arg(name': String, typ': ValueType, descr': String="", default: (Value|None) = None) ? =>
-    if commands.size() > 0 then error end
-    let a = ArgSpec(name', typ', descr', default)
-    args.push(a)
+  fun ref command(cmd: CommandSpec) =>
+    commands.update(cmd.name, cmd)
 
   fun box string(): String =>
     let s: String iso = name.clone()
@@ -100,8 +100,8 @@ class FlagSpec
   let default: Value
   let required: Bool
 
-  new create(name': String, typ': ValueType, descr': String,
-    short': (U8 | None), default': (Value | None)) ?
+  new create(name': String, typ': ValueType, descr': String = "",
+    short': (U8 | None) = None, default': (Value | None) = None) ?
   =>
     name = name'
     typ = typ'
@@ -150,7 +150,7 @@ class ArgSpec
   let default: Value
   let required: Bool
 
-  new create(name': String, typ': ValueType, descr': String, default': (Value|None)) ? =>
+  new create(name': String, typ': ValueType, descr': String="", default': (Value|None)=None) ? =>
     name = name'
     typ = typ'
     descr = descr'
@@ -166,6 +166,9 @@ class ArgSpec
 
   fun string(): String =>
     name + "[" + typ.string() + "]"
+
+
+type Spec is (CommandSpec | FlagSpec | ArgSpec)
 
 
 primitive BoolType

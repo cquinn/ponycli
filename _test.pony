@@ -21,8 +21,9 @@ class iso _TestMinimal is UnitTest
   fun name(): String => "ponycli/minimal"
 
   fun apply(h: TestHelper) ? =>
-    let cs = CommandSpec("minimal", "")
-      .>flag("aflag", BoolType, "")
+    let cs = CommandSpec.leaf("minimal", "", [
+        FlagSpec("aflag", BoolType, "")
+    ])
 
     h.assert_eq[String]("minimal", cs.name)
 
@@ -228,7 +229,6 @@ class iso _TestChatAll is UnitTest
     let cmd = match cmdErr | let c: Command => c else error end
 
     h.assert_eq[String]("say", cmd.spec.name)
-    h.assert_eq[String]("chat/say", cmd.spec.fullname)
 
     let f1 = cmd.flags("admin")
     h.assert_eq[String]("admin", f1.spec.name)
@@ -253,39 +253,43 @@ primitive _Fixtures
     """
     Builds and returns the spec for a CLI with four bool flags.
     """
-    CommandSpec("bools", "a sample CLI with four bool flags")
-      .>flag("a", BoolType where short = 'a')
-      .>flag("b", BoolType where short = 'b')
-      .>flag("c", BoolType where short = 'c')
-      .>flag("d", BoolType where short = 'd')
+    CommandSpec.leaf("bools", "a sample CLI with four bool flags", [
+      FlagSpec("a", BoolType where short' = 'a'),
+      FlagSpec("b", BoolType where short' = 'b'),
+      FlagSpec("c", BoolType where short' = 'c'),
+      FlagSpec("d", BoolType where short' = 'd')
+    ])
 
   fun shorts_cli_spec(): CommandSpec box ? =>
     """
     Builds and returns the spec for a CLI with short flags of each type.
     """
-    CommandSpec("shorts", "a sample program with various short flags")
-      .>flag("boolr", BoolType where short = 'B')
-      .>flag("boolo", BoolType where short = 'b', default=true)
-      .>flag("stringr", StringType where short = 'S')
-      .>flag("stringo", StringType where short = 's', default="astring")
-      .>flag("intr", I64Type where short = 'I')
-      .>flag("into", I64Type where short = 'i', default=I64(42))
-      .>flag("floatr", F64Type where short = 'F')
-      .>flag("floato", F64Type where short = 'f', default=F64(42.0))
+    CommandSpec.leaf("shorts", "a sample program with various short flags", [
+      FlagSpec("boolr", BoolType where short' = 'B'),
+      FlagSpec("boolo", BoolType where short' = 'b', default'=true),
+      FlagSpec("stringr", StringType where short' = 'S'),
+      FlagSpec("stringo", StringType where short' = 's', default'="astring"),
+      FlagSpec("intr", I64Type where short' = 'I'),
+      FlagSpec("into", I64Type where short' = 'i', default'=I64(42)),
+      FlagSpec("floatr", F64Type where short' = 'F'),
+      FlagSpec("floato", F64Type where short' = 'f', default'=F64(42.0))
+    ])
 
   fun chat_cli_spec(): CommandSpec box ? =>
     """
     Builds and returns the spec for a sample chat client's CLI.
     """
-    let cs = CommandSpec("chat", "sample chat program")
-      .>flag("admin", BoolType, "chat as admin" where default=false)
-      .>flag("name", StringType, "your name" where short='n')
-      .>flag("volume", F64Type, "chat volume" where short='v')
-
-    let say = cs.command("say", "say something")
-    say.arg("words", StringType)
-
-    let emote = cs.command("emote")
-    emote.arg("emotion", StringType, "emotion to send")
-    emote.flag("speed", F64Type, "how fast to play emotion" where default=F64(1.0))
-    cs
+    CommandSpec.parent("chat", "sample chat program", [
+      FlagSpec("admin", BoolType, "chat as admin" where default'=false),
+      FlagSpec("name", StringType, "your name" where short'='n'),
+      FlagSpec("volume", F64Type, "chat volume" where short'='v')
+    ],[
+      CommandSpec.leaf("say", "say something", Array[FlagSpec](), [
+        ArgSpec("words", StringType)
+      ]),
+      CommandSpec.leaf("emote", "", [
+        FlagSpec("speed", F64Type, "how fast to play emotion" where default'=F64(1.0))
+      ],[
+        ArgSpec("emotion", StringType, "emotion to send")
+      ])
+    ])

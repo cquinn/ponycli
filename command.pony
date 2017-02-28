@@ -13,7 +13,7 @@ class box Command
       args = args'
 
   fun string(): String =>
-    let s: String iso = spec.fullname.clone()
+    let s: String iso = spec.name.clone()
     for f in flags.values() do
       s.append(" ")
       s.append(f.string())
@@ -23,7 +23,6 @@ class box Command
       s.append(a.string())
     end
     s
-
 
 class box Flag
   let spec: FlagSpec box
