@@ -1,5 +1,6 @@
 """
-This package implements command line parsing with the notion of commands that are specified as a hierarchy.
+This package implements command line parsing with the notion of commands that
+are specified as a hierarchy.
 See RFC-xxx for more details.
 
 The general EBNF of the command line looks like:
@@ -43,11 +44,10 @@ class CommandSpec
 
   new parent(name': String, descr': String = "",
     flags': Array[FlagSpec] box = Array[FlagSpec](),
-    commands': Array[CommandSpec] box = Array[CommandSpec]())
+    commands': Array[CommandSpec] box = Array[CommandSpec]()) ?
   =>
-    name = name'
+    name = assertName(name')
     descr = descr'
-    // TODO: error of name is not alpha_num?
     for f in flags'.values() do
       flags.update(f.name, f)
     end
@@ -57,17 +57,27 @@ class CommandSpec
 
   new leaf(name': String, descr': String = "",
     flags': Array[FlagSpec] box = Array[FlagSpec](),
-    args': Array[ArgSpec] box = Array[ArgSpec]())
+    args': Array[ArgSpec] box = Array[ArgSpec]()) ?
   =>
-    name = name'
+    name = assertName(name')
     descr = descr'
-    // TODO: error of name is not alpha_num?
     for f in flags'.values() do
       flags.update(f.name, f)
     end
     for a in args'.values() do
       args.push(a)
     end
+
+    fun tag assertName(nm: String): String ? =>
+      for b in nm.values() do
+        if (b != '-') and (b != '_') and
+          not ((b >= '0') and (b <= '9')) and
+          not ((b >= 'A') and (b <= 'Z')) and
+          not ((b >= 'a') and (b <= 'z')) then
+          error
+        end
+      end
+      nm
 
   fun ref command(cmd: CommandSpec) =>
     commands.update(cmd.name, cmd)
@@ -94,40 +104,64 @@ class FlagSpec
   FlagSpec describes the specification of a flag.
   """
   let name: String
-  let typ: ValueType
   let descr: String
   let short: (U8 | None)
+  let typ: ValueType
   let default: Value
   let required: Bool
 
-  new create(name': String, typ': ValueType, descr': String = "",
-    short': (U8 | None) = None, default': (Value | None) = None) ?
+  fun tag init(typ': ValueType, default': (Value | None))
+  :
+    (ValueType, Value, Bool) ?
   =>
-    name = name'
-    typ = typ'
-    descr = descr'
-    short = short'
     match default'
       | None =>
-        default = typ.default()
-        required = true
+        (typ', typ'.default(), true)
     else
-      if not (Type.of(default') is typ') then error end
-      default = default' as Value
-      required = false
+      //if not (Type.of(default') is typ') then error end
+      (typ', default' as Value, false)
     end
+
+  new boolT(name': String, descr': String = "",
+    short': (U8 | None) = None, default': (Bool | None) = None) ?
+  =>
+    name = name'
+    descr = descr'
+    short = short'
+    (typ, default, required) = init(BoolType, default')
+
+  new stringT(name': String, descr': String = "",
+    short': (U8 | None) = None, default': (String | None) = None) ?
+  =>
+    name = name'
+    descr = descr'
+    short = short'
+    (typ, default, required) = init(StringType, default')
+
+  new i64T(name': String, descr': String = "",
+    short': (U8 | None) = None, default': (I64 | None) = None) ?
+  =>
+    name = name'
+    descr = descr'
+    short = short'
+    (typ, default, required) = init(I64Type, default')
+
+  new f64T(name': String, descr': String = "",
+    short': (U8 | None) = None, default': (F64 | None) = None) ?
+  =>
+    name = name'
+    descr = descr'
+    short = short'
+    (typ, default, required) = init(F64Type, default')
 
   // Other than bools, all flags require args.
   fun box requires_arg(): Bool =>
     match typ |(let b: BoolType) => false else true end
-    // TODO: why can't we match on just type? |BoolType=>...
+    // TODO: why can't Pony match on just type? |BoolType=>...
 
   // Used for bool flags to get the true arg when flag is present w/o arg
   fun default_arg(): Value =>
     match typ |(let b: BoolType) => true else false end
-
-  fun box has_name(nm: String): Bool =>
-    nm == name
 
   fun box has_short(sh: U8): Bool =>
     match short
@@ -137,7 +171,8 @@ class FlagSpec
     end
 
   fun string(): String =>
-    "--" + name + "[" + typ.string() + "]"
+    "--" + name + "[" + typ.string() + "]" +
+      if not required then "(=" + default.string() + ")" else "" end
 
 
 class ArgSpec
@@ -145,30 +180,50 @@ class ArgSpec
   ArgSpec describes the specification of a positional argument.
   """
   let name: String
-  let typ: ValueType
   let descr: String
+  let typ: ValueType
   let default: Value
   let required: Bool
 
-  new create(name': String, typ': ValueType, descr': String="", default': (Value|None)=None) ? =>
-    name = name'
-    typ = typ'
-    descr = descr'
+  fun tag init(typ': ValueType, default': (Value | None))
+  :
+    (ValueType, Value, Bool) ?
+  =>
     match default'
       | None =>
-        default = typ.default() // Has the right type, but won't be used.
-        required = true
+        (typ', typ'.default(), true)
     else
       if not (Type.of(default') is typ') then error end
-      default = default' as Value
-      required = false
+      (typ', default' as Value, false)
     end
 
+  new boolT(name': String, descr': String="", default': (Bool|None)=None) ?
+  =>
+    name = name'
+    descr = descr'
+    (typ, default, required) = init(BoolType, default')
+
+  new stringT(name': String, descr': String="", default': (String|None)=None) ?
+  =>
+    name = name'
+    descr = descr'
+    (typ, default, required) = init(StringType, default')
+
+  new i64T(name': String, descr': String="", default': (I64|None)=None) ?
+  =>
+    name = name'
+    descr = descr'
+    (typ, default, required) = init(I64Type, default')
+
+  new f64T(name': String, descr': String="", default': (F64|None)=None) ?
+  =>
+    name = name'
+    descr = descr'
+    (typ, default, required) = init(F64Type, default')
+
   fun string(): String =>
-    name + "[" + typ.string() + "]"
-
-
-type Spec is (CommandSpec | FlagSpec | ArgSpec)
+    name + "[" + typ.string() + "]" +
+      if not required then "(=" + default.string() + ")" else "" end
 
 
 primitive BoolType

@@ -13,7 +13,7 @@ actor Main is TestList
     test(_TestShortsNext)
     test(_TestLongsEq)
     test(_TestLongsNext)
-    test(_TestChatEmpty)
+    test(_TestChatMin)
     test(_TestChatAll)
 
 
@@ -22,7 +22,7 @@ class iso _TestMinimal is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let cs = CommandSpec.leaf("minimal", "", [
-        FlagSpec("aflag", BoolType, "")
+        FlagSpec.boolT("aflag", "")
     ])
 
     h.assert_eq[String]("minimal", cs.name)
@@ -44,19 +44,19 @@ class iso _TestBools is UnitTest
     let cs = _Fixtures.bools_cli_spec()
     h.log("Command spec: " + cs.string())
 
-    let args: Array[String] = ["ignored", "-abc"]
+    let args: Array[String] = ["ignored", "-ab", "-c=true", "-d=false"]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed command: " + cmdErr.string())
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    let af = cmd.flags("a")
+    let af = cmd.flags("aaa")
     h.assert_eq[Bool](true, af.value as Bool)
-    let bf = cmd.flags("b")
+    let bf = cmd.flags("bbb")
     h.assert_eq[Bool](true, bf.value as Bool)
-    let cf = cmd.flags("c")
+    let cf = cmd.flags("ccc")
     h.assert_eq[Bool](true, cf.value as Bool)
-    let df = cmd.flags("d")
+    let df = cmd.flags("ddd")
     h.assert_eq[Bool](false, df.value as Bool)
 
 
@@ -67,7 +67,7 @@ class iso _TestDefaults is UnitTest
     let cs = _Fixtures.shorts_cli_spec()
     h.log("Command spec: " + cs.string())
 
-    let args: Array[String] = ["ignored"]
+    let args: Array[String] = ["ignored", "-B", "-Sastring", "-I42", "-F42.0"]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed command: " + cmdErr.string())
 
@@ -136,7 +136,9 @@ class iso _TestShortsNext is UnitTest
     let cs = _Fixtures.shorts_cli_spec()
     h.log("Command spec: " + cs.string())
 
-    let args: Array[String] = ["ignored", "-BS", "astring", "-I", "42", "-F", "42.0"]
+    let args: Array[String] = [
+        "ignored", "-BS", "astring", "-I", "42", "-F", "42.0"
+    ]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed command: " + cmdErr.string())
 
@@ -159,7 +161,10 @@ class iso _TestLongsEq is UnitTest
     let cs = _Fixtures.shorts_cli_spec()
     h.log("Command spec: " + cs.string())
 
-    let args: Array[String] = ["ignored", "--boolr=true", "--stringr=astring", "--intr=42", "--floatr=42.0"]
+    let args: Array[String] = [
+        "ignored",
+        "--boolr=true", "--stringr=astring", "--intr=42", "--floatr=42.0"
+    ]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed command: " + cmdErr.string())
 
@@ -176,13 +181,16 @@ class iso _TestLongsEq is UnitTest
 
 
 class iso _TestLongsNext is UnitTest
-  fun name(): String => "ponycli/shorts_next"
+  fun name(): String => "ponycli/longs_next"
 
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.shorts_cli_spec()
     h.log("Command spec: " + cs.string())
 
-    let args: Array[String] = ["ignored", "--stringr", "astring", "--intr", "42", "--floatr", "42.0"]
+    let args: Array[String] = [
+        "ignored",
+        "--boolr", "--stringr", "astring", "--intr", "42", "--floatr", "42.0"
+    ]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed command: " + cmdErr.string())
 
@@ -196,14 +204,14 @@ class iso _TestLongsNext is UnitTest
     h.assert_eq[F64](42.0, ffr.value as F64)
 
 
-class iso _TestChatEmpty is UnitTest
-  fun name(): String => "ponycli/chat_empty"
+class iso _TestChatMin is UnitTest
+  fun name(): String => "ponycli/chat_min"
 
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.chat_cli_spec()
     h.log("Command spec: " + cs.string())
 
-    let args: Array[String] = ["ignored"]
+    let args: Array[String] = ["ignored", "--name=me", "--volume=42"]
     let vars: Array[String] = [""]
 
     let cmdErr = CommandParser(cs).parse(args, vars)
@@ -220,7 +228,10 @@ class iso _TestChatAll is UnitTest
     let cs = _Fixtures.chat_cli_spec()
     h.log("Command spec: " + cs.string())
 
-    let args: Array[String] = ["ignored", "--admin", "--name=carl", "say", "-v80", "hello"]
+    let args: Array[String] = [
+        "ignored",
+        "--admin", "--name=carl", "say", "-v80", "hello"
+    ]
     let vars: Array[String] = [""]
 
     let cmdErr = CommandParser(cs).parse(args, vars)
@@ -254,25 +265,26 @@ primitive _Fixtures
     Builds and returns the spec for a CLI with four bool flags.
     """
     CommandSpec.leaf("bools", "a sample CLI with four bool flags", [
-      FlagSpec("a", BoolType where short' = 'a'),
-      FlagSpec("b", BoolType where short' = 'b'),
-      FlagSpec("c", BoolType where short' = 'c'),
-      FlagSpec("d", BoolType where short' = 'd')
+      FlagSpec.boolT("aaa" where short' = 'a'),
+      FlagSpec.boolT("bbb" where short' = 'b'),
+      FlagSpec.boolT("ccc" where short' = 'c'),
+      FlagSpec.boolT("ddd" where short' = 'd')
     ])
 
   fun shorts_cli_spec(): CommandSpec box ? =>
     """
     Builds and returns the spec for a CLI with short flags of each type.
     """
-    CommandSpec.leaf("shorts", "a sample program with various short flags", [
-      FlagSpec("boolr", BoolType where short' = 'B'),
-      FlagSpec("boolo", BoolType where short' = 'b', default'=true),
-      FlagSpec("stringr", StringType where short' = 'S'),
-      FlagSpec("stringo", StringType where short' = 's', default'="astring"),
-      FlagSpec("intr", I64Type where short' = 'I'),
-      FlagSpec("into", I64Type where short' = 'i', default'=I64(42)),
-      FlagSpec("floatr", F64Type where short' = 'F'),
-      FlagSpec("floato", F64Type where short' = 'f', default'=F64(42.0))
+    CommandSpec.leaf("shorts",
+        "a sample program with various short flags, optional and required", [
+      FlagSpec.boolT("boolr" where short' = 'B'),
+      FlagSpec.boolT("boolo" where short' = 'b', default' = true),
+      FlagSpec.stringT("stringr" where short' = 'S'),
+      FlagSpec.stringT("stringo" where short' = 's', default' = "astring"),
+      FlagSpec.i64T("intr" where short' = 'I'),
+      FlagSpec.i64T("into" where short' = 'i', default' = I64(42)),
+      FlagSpec.f64T("floatr" where short' = 'F'),
+      FlagSpec.f64T("floato" where short' = 'f', default' = F64(42.0))
     ])
 
   fun chat_cli_spec(): CommandSpec box ? =>
@@ -280,16 +292,16 @@ primitive _Fixtures
     Builds and returns the spec for a sample chat client's CLI.
     """
     CommandSpec.parent("chat", "sample chat program", [
-      FlagSpec("admin", BoolType, "chat as admin" where default'=false),
-      FlagSpec("name", StringType, "your name" where short'='n'),
-      FlagSpec("volume", F64Type, "chat volume" where short'='v')
+      FlagSpec.boolT("admin", "chat as admin" where default' = false),
+      FlagSpec.stringT("name", "your name" where short' = 'n'),
+      FlagSpec.f64T("volume", "chat volume" where short' = 'v')
     ],[
       CommandSpec.leaf("say", "say something", Array[FlagSpec](), [
-        ArgSpec("words", StringType)
+        ArgSpec.stringT("words")
       ]),
-      CommandSpec.leaf("emote", "", [
-        FlagSpec("speed", F64Type, "how fast to play emotion" where default'=F64(1.0))
+      CommandSpec.leaf("emote", "send an emotion", [
+        FlagSpec.f64T("speed", "emote play speed" where default' = F64(1.0))
       ],[
-        ArgSpec("emotion", StringType, "emotion to send")
+        ArgSpec.stringT("emotion", "emote to send")
       ])
     ])

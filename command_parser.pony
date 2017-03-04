@@ -60,7 +60,25 @@ class CommandParser
         end
       end
     end
-    _populate_defaults(flags, args)
+    // Check for missing flags and args: fill in defaults or error if missing.
+    for fs in spec.flags.values() do
+      if not flags.contains(fs.name) then
+        if fs.required then
+          return SyntaxError(fs.name, "missing value for required flag")
+        end
+        flags.update(fs.name, Flag(fs, fs.default))
+      end
+    end
+    while arg_pos < spec.args.size() do
+      try
+        let ars = spec.args(arg_pos)
+        if ars.required then
+          return SyntaxError(ars.name, "missing value for required argument " + arg_pos.string() + " / " + spec.args.size().string())
+        end
+        args.update(ars.name, Arg(ars, ars.default))
+      end
+      arg_pos = arg_pos + 1
+    end
     Command(spec, flags, args)
 
   fun box _parse_long_flag(
@@ -79,7 +97,7 @@ class CommandParser
     | let fs: FlagSpec box => FlagParser.parse(fs, farg, args, vars)
     | None => SyntaxError(name, "unknown long flag")
     else
-        SyntaxError(name, "Pony: shouldn't allow this")
+      SyntaxError(name, "Pony: shouldn't allow this")
     end
 
   fun box _parse_short_flags(
@@ -94,10 +112,10 @@ class CommandParser
       -f Foo => -f has argument Foo
     else
       -f=Foo => -f has argument foo
-      -abc => flags a, b, c.
-      -abcFoo => flags a, b, c. c has argument Foo iff its arg is required.
-      -abc=Foo => flags a, b, c. c has argument Foo.
-      -abc Foo => flags a, b, c. c has argument Foo iff its arg is required.
+    -abc => flags a, b, c.
+    -abcFoo => flags a, b, c. c has argument Foo iff its arg is required.
+    -abc=Foo => flags a, b, c. c has argument Foo.
+    -abc Foo => flags a, b, c. c has argument Foo iff its arg is required.
     """
     let parts = token.split("=")
     let shorts = (try parts(0) else "" end).clone()
@@ -109,7 +127,7 @@ class CommandParser
       match _flag_with_short(c)
       | let fs: FlagSpec box =>
         if fs.requires_arg() and (shorts.size() > 0) then
-          // flag needs args, so consume the remainder of the shorts for farg
+          // flag needs an arg, so consume the remainder of the shorts for farg
           if farg is None then
             farg = shorts.clone()
             shorts.truncate(0)
@@ -145,20 +163,10 @@ class CommandParser
       return SyntaxError(token, "too many positional arguments")
     end
 
-  fun box _populate_defaults(
-    flags: col.Map[String,Flag] ref,
-    args: col.Map[String,Arg] ref): (SyntaxError | None)
-  =>
-    for f in spec.flags.values() do
-      if not flags.contains(f.name) then
-        flags.update(f.name, Flag(f, f.default))
-      end
-    end
-    None
-
   fun box _flag_with_name(name: String): (FlagSpec box | None) =>
+    // TODO(cq): should be able to look this up by name
     for f in spec.flags.values() do
-      if f.has_name(name) then
+      if f.name == name then
         return f
       end
     end
