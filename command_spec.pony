@@ -46,7 +46,11 @@ class CommandSpec
     flags': Array[FlagSpec] box = Array[FlagSpec](),
     commands': Array[CommandSpec] box = Array[CommandSpec]()) ?
   =>
-    name = assertName(name')
+    """
+    Create a command spec that can accept flags and child commands, but not
+    arguments.
+    """
+    name = _assertName(name')
     descr = descr'
     for f in flags'.values() do
       flags.update(f.name, f)
@@ -54,12 +58,17 @@ class CommandSpec
     for c in commands'.values() do
       commands.update(c.name, c)
     end
+    // TODO(cq) init args with an immutable empty array?
 
   new leaf(name': String, descr': String = "",
     flags': Array[FlagSpec] box = Array[FlagSpec](),
     args': Array[ArgSpec] box = Array[ArgSpec]()) ?
   =>
-    name = assertName(name')
+    """
+    Create a command spec that can accept flags and arguments, but not child
+    commands.
+    """
+    name = _assertName(name')
     descr = descr'
     for f in flags'.values() do
       flags.update(f.name, f)
@@ -67,8 +76,9 @@ class CommandSpec
     for a in args'.values() do
       args.push(a)
     end
+    // TODO(cq) init commands with an immutable empty array?
 
-    fun tag assertName(nm: String): String ? =>
+    fun tag _assertName(nm: String): String ? =>
       for b in nm.values() do
         if (b != '-') and (b != '_') and
           not ((b >= '0') and (b <= '9')) and
@@ -79,11 +89,15 @@ class CommandSpec
       end
       nm
 
-  fun ref command(cmd: CommandSpec) =>
+  fun ref command(cmd: CommandSpec) ? =>
+    """
+    Add an additional child command to this parent command.
+    """
+    if args.size() > 0 then error end
     commands.update(cmd.name, cmd)
 
-  fun box string(): String =>
-    let s: String iso = name.clone()
+  fun box string(): String val =>
+    let s = name.clone()
     for f in flags.values() do
       s.append(" ")
       s.append(f.string())
@@ -110,15 +124,13 @@ class FlagSpec
   let default: Value
   let required: Bool
 
-  fun tag init(typ': ValueType, default': (Value | None))
-  :
+  fun tag _init(typ': ValueType, default': (Value | None)) :
     (ValueType, Value, Bool) ?
   =>
     match default'
       | None =>
-        (typ', typ'.default(), true)
+        (typ', false, true)
     else
-      //if not (Type.of(default') is typ') then error end
       (typ', default' as Value, false)
     end
 
@@ -128,7 +140,7 @@ class FlagSpec
     name = name'
     descr = descr'
     short = short'
-    (typ, default, required) = init(BoolType, default')
+    (typ, default, required) = _init(BoolType, default')
 
   new stringT(name': String, descr': String = "",
     short': (U8 | None) = None, default': (String | None) = None) ?
@@ -136,7 +148,7 @@ class FlagSpec
     name = name'
     descr = descr'
     short = short'
-    (typ, default, required) = init(StringType, default')
+    (typ, default, required) = _init(StringType, default')
 
   new i64T(name': String, descr': String = "",
     short': (U8 | None) = None, default': (I64 | None) = None) ?
@@ -144,7 +156,7 @@ class FlagSpec
     name = name'
     descr = descr'
     short = short'
-    (typ, default, required) = init(I64Type, default')
+    (typ, default, required) = _init(I64Type, default')
 
   new f64T(name': String, descr': String = "",
     short': (U8 | None) = None, default': (F64 | None) = None) ?
@@ -152,18 +164,18 @@ class FlagSpec
     name = name'
     descr = descr'
     short = short'
-    (typ, default, required) = init(F64Type, default')
+    (typ, default, required) = _init(F64Type, default')
 
   // Other than bools, all flags require args.
-  fun box requires_arg(): Bool =>
+  fun box _requires_arg(): Bool =>
     match typ |(let b: BoolType) => false else true end
     // TODO: why can't Pony match on just type? |BoolType=>...
 
   // Used for bool flags to get the true arg when flag is present w/o arg
-  fun default_arg(): Value =>
+  fun _default_arg(): Value =>
     match typ |(let b: BoolType) => true else false end
 
-  fun box has_short(sh: U8): Bool =>
+  fun box _has_short(sh: U8): Bool =>
     match short
     | let ss: U8 => sh == ss
     else
@@ -185,15 +197,14 @@ class ArgSpec
   let default: Value
   let required: Bool
 
-  fun tag init(typ': ValueType, default': (Value | None))
+  fun tag _init(typ': ValueType, default': (Value | None))
   :
     (ValueType, Value, Bool) ?
   =>
     match default'
       | None =>
-        (typ', typ'.default(), true)
+        (typ', false, true)
     else
-      if not (Type.of(default') is typ') then error end
       (typ', default' as Value, false)
     end
 
@@ -201,62 +212,47 @@ class ArgSpec
   =>
     name = name'
     descr = descr'
-    (typ, default, required) = init(BoolType, default')
+    (typ, default, required) = _init(BoolType, default')
 
   new stringT(name': String, descr': String="", default': (String|None)=None) ?
   =>
     name = name'
     descr = descr'
-    (typ, default, required) = init(StringType, default')
+    (typ, default, required) = _init(StringType, default')
 
   new i64T(name': String, descr': String="", default': (I64|None)=None) ?
   =>
     name = name'
     descr = descr'
-    (typ, default, required) = init(I64Type, default')
+    (typ, default, required) = _init(I64Type, default')
 
   new f64T(name': String, descr': String="", default': (F64|None)=None) ?
   =>
     name = name'
     descr = descr'
-    (typ, default, required) = init(F64Type, default')
+    (typ, default, required) = _init(F64Type, default')
 
   fun string(): String =>
     name + "[" + typ.string() + "]" +
       if not required then "(=" + default.string() + ")" else "" end
 
 
+type Value is (Bool | String | I64 | F64)
+
 primitive BoolType
   fun string(): String => "Bool"
-  fun default(): Value => false
 
 primitive StringType
   fun string(): String => "String"
-  fun default(): Value => ""
 
 primitive I64Type
   fun string(): String => "I64"
-  fun default(): Value => I64(0)
 
 primitive F64Type
   fun string(): String => "F64"
-  fun default(): Value => F64(0.0)
 
 type ValueType is
   ( BoolType
   | StringType
   | I64Type
   | F64Type)
-
-primitive Type
-  fun of(v: (Value|None)): (ValueType|None) =>
-    match v
-    | let b: Bool => BoolType
-    | let s: String => StringType
-    | let i: I64 => I64Type
-    | let f: F64 => F64Type
-    | None => None
-    else
-      // TODO: Pony shouldn't hit this
-      BoolType // None?
-    end

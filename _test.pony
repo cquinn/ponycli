@@ -6,6 +6,8 @@ actor Main is TestList
 
   fun tag tests(test: PonyTest) =>
     test(_TestMinimal)
+    test(_TestBadName)
+    test(_TestHyphenArg)
     test(_TestBools)
     test(_TestDefaults)
     test(_TestShortsAdj)
@@ -13,6 +15,8 @@ actor Main is TestList
     test(_TestShortsNext)
     test(_TestLongsEq)
     test(_TestLongsNext)
+    test(_TestEnvs)
+    test(_TestFlagStop)
     test(_TestChatMin)
     test(_TestChatAll)
 
@@ -24,184 +28,245 @@ class iso _TestMinimal is UnitTest
     let cs = CommandSpec.leaf("minimal", "", [
         FlagSpec.boolT("aflag", "")
     ])
+    h.log("Spec: " + cs.string())
 
     h.assert_eq[String]("minimal", cs.name)
 
     let args: Array[String] = ["ignored", "--aflag=true"]
     let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed command: " + cmdErr.string())
+    h.log("Parsed: " + cmdErr.string())
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    let f = cmd.flags("aflag")
-    h.assert_eq[Bool](true, f.value as Bool)
+    h.assert_eq[Bool](true, cmd.flags("aflag").value as Bool)
+
+
+class iso _TestBadName is UnitTest
+  fun name(): String => "ponycli/badname"
+
+  fun apply(h: TestHelper) ? =>
+    try
+        let cs = CommandSpec.leaf("min imal", "")
+        h.log("Spec: " + cs.string())
+    else
+        return // error was expected
+    end
+    error  // lack of error is bad
+
+
+class iso _TestHyphenArg is UnitTest
+  fun name(): String => "ponycli/hyphen"
+
+  // Rule 1
+  fun apply(h: TestHelper) ? =>
+    let cs = CommandSpec.leaf("minimal" where args' = [
+        ArgSpec.stringT("name", "")
+    ])
+    h.log("Spec: " + cs.string())
+    let args: Array[String] = ["ignored", "-"]
+    let cmdErr = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmdErr.string())
+
+    let cmd = match cmdErr | let c: Command => c else error end
+
+    h.assert_eq[String]("-", cmd.args("name").value as String)
 
 
 class iso _TestBools is UnitTest
   fun name(): String => "ponycli/bools"
 
+  // Rules 2, 3, 5, 7 w/ Bools
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.bools_cli_spec()
-    h.log("Command spec: " + cs.string())
+    h.log("Spec: " + cs.string())
 
     let args: Array[String] = ["ignored", "-ab", "-c=true", "-d=false"]
     let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed command: " + cmdErr.string())
+    h.log("Parsed: " + cmdErr.string())
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    let af = cmd.flags("aaa")
-    h.assert_eq[Bool](true, af.value as Bool)
-    let bf = cmd.flags("bbb")
-    h.assert_eq[Bool](true, bf.value as Bool)
-    let cf = cmd.flags("ccc")
-    h.assert_eq[Bool](true, cf.value as Bool)
-    let df = cmd.flags("ddd")
-    h.assert_eq[Bool](false, df.value as Bool)
+    h.assert_eq[Bool](true, cmd.flags("aaa").value as Bool)
+    h.assert_eq[Bool](true, cmd.flags("bbb").value as Bool)
+    h.assert_eq[Bool](true, cmd.flags("ccc").value as Bool)
+    h.assert_eq[Bool](false, cmd.flags("ddd").value as Bool)
 
 
 class iso _TestDefaults is UnitTest
   fun name(): String => "ponycli/defaults"
 
+  // Rules 2, 3, 5, 6
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.shorts_cli_spec()
-    h.log("Command spec: " + cs.string())
+    let cs = _Fixtures.simple_cli_spec()
+    h.log("Spec: " + cs.string())
 
-    let args: Array[String] = ["ignored", "-B", "-Sastring", "-I42", "-F42.0"]
+    let args: Array[String] = ["ignored", "-B", "-S--", "-I42", "-F42.0"]
     let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed command: " + cmdErr.string())
+    h.log("Parsed: " + cmdErr.string())
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    let bfo = cmd.flags("boolo")
-    h.assert_eq[Bool](true, bfo.value as Bool)
-    let sfo = cmd.flags("stringo")
-    h.assert_eq[String]("astring", sfo.value as String)
-    let ifo = cmd.flags("into")
-    h.assert_eq[I64](42, ifo.value as I64)
-    let ffo = cmd.flags("floato")
-    h.assert_eq[F64](42.0, ffo.value as F64)
+    h.assert_eq[Bool](true, cmd.flags("boolo").value as Bool)
+    h.assert_eq[String]("astring", cmd.flags("stringo").value as String)
+    h.assert_eq[I64](42, cmd.flags("into").value as I64)
+    h.assert_eq[F64](42.0, cmd.flags("floato").value as F64)
 
 
 class iso _TestShortsAdj is UnitTest
   fun name(): String => "ponycli/shorts_adjacent"
 
+  // Rules 2, 3, 5, 6, 8
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.shorts_cli_spec()
-    h.log("Command spec: " + cs.string())
+    let cs = _Fixtures.simple_cli_spec()
+    h.log("Spec: " + cs.string())
 
-    let args: Array[String] = ["ignored", "-BSastring", "-I42", "-F42.0"]
+    let args: Array[String] = ["ignored", "-BS--", "-I42", "-F42.0"]
     let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed command: " + cmdErr.string())
+    h.log("Parsed: " + cmdErr.string())
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    let bfr = cmd.flags("boolr")
-    h.assert_eq[Bool](true, bfr.value as Bool)
-    let sfr = cmd.flags("stringr")
-    h.assert_eq[String]("astring", sfr.value as String)
-    let ifr = cmd.flags("intr")
-    h.assert_eq[I64](42, ifr.value as I64)
-    let ffr = cmd.flags("floatr")
-    h.assert_eq[F64](42.0, ffr.value as F64)
+    h.assert_eq[Bool](true, cmd.flags("boolr").value as Bool)
+    h.assert_eq[String]("--", cmd.flags("stringr").value as String)
+    h.assert_eq[I64](42, cmd.flags("intr").value as I64)
+    h.assert_eq[F64](42.0, cmd.flags("floatr").value as F64)
 
 
 class iso _TestShortsEq is UnitTest
   fun name(): String => "ponycli/shorts_eq"
 
+  // Rules 2, 3, 5, 7
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.shorts_cli_spec()
-    h.log("Command spec: " + cs.string())
+    let cs = _Fixtures.simple_cli_spec()
+    h.log("Spec: " + cs.string())
 
     let args: Array[String] = ["ignored", "-BS=astring", "-I=42", "-F=42.0"]
     let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed command: " + cmdErr.string())
+    h.log("Parsed: " + cmdErr.string())
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    let bfr = cmd.flags("boolr")
-    h.assert_eq[Bool](true, bfr.value as Bool)
-    let sfr = cmd.flags("stringr")
-    h.assert_eq[String]("astring", sfr.value as String)
-    let ifr = cmd.flags("intr")
-    h.assert_eq[I64](42, ifr.value as I64)
-    let ffr = cmd.flags("floatr")
-    h.assert_eq[F64](42.0, ffr.value as F64)
+    h.assert_eq[Bool](true, cmd.flags("boolr").value as Bool)
+    h.assert_eq[String]("astring", cmd.flags("stringr").value as String)
+    h.assert_eq[I64](42, cmd.flags("intr").value as I64)
+    h.assert_eq[F64](42.0, cmd.flags("floatr").value as F64)
 
 
 class iso _TestShortsNext is UnitTest
   fun name(): String => "ponycli/shorts_next"
 
+  // Rules 2, 3, 5, 8
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.shorts_cli_spec()
-    h.log("Command spec: " + cs.string())
+    let cs = _Fixtures.simple_cli_spec()
+    h.log("Spec: " + cs.string())
 
     let args: Array[String] = [
-        "ignored", "-BS", "astring", "-I", "42", "-F", "42.0"
+        "ignored", "-BS", "--", "-I", "42", "-F", "42.0"
     ]
     let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed command: " + cmdErr.string())
+    h.log("Parsed: " + cmdErr.string())
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    let bfr = cmd.flags("boolr")
-    h.assert_eq[Bool](true, bfr.value as Bool)
-    let sfr = cmd.flags("stringr")
-    h.assert_eq[String]("astring", sfr.value as String)
-    let ifr = cmd.flags("intr")
-    h.assert_eq[I64](42, ifr.value as I64)
-    let ffr = cmd.flags("floatr")
-    h.assert_eq[F64](42.0, ffr.value as F64)
+    h.assert_eq[Bool](true, cmd.flags("boolr").value as Bool)
+    h.assert_eq[String]("--", cmd.flags("stringr").value as String)
+    h.assert_eq[I64](42, cmd.flags("intr").value as I64)
+    h.assert_eq[F64](42.0, cmd.flags("floatr").value as F64)
 
 
 class iso _TestLongsEq is UnitTest
   fun name(): String => "ponycli/shorts_eq"
 
+  // Rules 4, 5, 7
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.shorts_cli_spec()
-    h.log("Command spec: " + cs.string())
+    let cs = _Fixtures.simple_cli_spec()
+    h.log("Spec: " + cs.string())
 
     let args: Array[String] = [
         "ignored",
         "--boolr=true", "--stringr=astring", "--intr=42", "--floatr=42.0"
     ]
     let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed command: " + cmdErr.string())
+    h.log("Parsed: " + cmdErr.string())
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    let bfr = cmd.flags("boolr")
-    h.assert_eq[Bool](true, bfr.value as Bool)
-    let sfr = cmd.flags("stringr")
-    h.assert_eq[String]("astring", sfr.value as String)
-    let ifr = cmd.flags("intr")
-    h.assert_eq[I64](42, ifr.value as I64)
-    let ffr = cmd.flags("floatr")
-    h.assert_eq[F64](42.0, ffr.value as F64)
+    h.assert_eq[Bool](true, cmd.flags("boolr").value as Bool)
+    h.assert_eq[String]("astring", cmd.flags("stringr").value as String)
+    h.assert_eq[I64](42, cmd.flags("intr").value as I64)
+    h.assert_eq[F64](42.0, cmd.flags("floatr").value as F64)
 
 
 class iso _TestLongsNext is UnitTest
   fun name(): String => "ponycli/longs_next"
 
+  // Rules 4, 5, 8
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.shorts_cli_spec()
-    h.log("Command spec: " + cs.string())
+    let cs = _Fixtures.simple_cli_spec()
+    h.log("Spec: " + cs.string())
 
     let args: Array[String] = [
         "ignored",
-        "--boolr", "--stringr", "astring", "--intr", "42", "--floatr", "42.0"
+        "--boolr", "--stringr", "--", "--intr", "42", "--floatr", "42.0"
     ]
     let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed command: " + cmdErr.string())
+    h.log("Parsed: " + cmdErr.string())
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    let sfr = cmd.flags("stringr")
-    h.assert_eq[String]("astring", sfr.value as String)
-    let ifr = cmd.flags("intr")
-    h.assert_eq[I64](42, ifr.value as I64)
-    let ffr = cmd.flags("floatr")
-    h.assert_eq[F64](42.0, ffr.value as F64)
+    h.assert_eq[String]("--", cmd.flags("stringr").value as String)
+    h.assert_eq[I64](42, cmd.flags("intr").value as I64)
+    h.assert_eq[F64](42.0, cmd.flags("floatr").value as F64)
+
+
+class iso _TestEnvs is UnitTest
+  fun name(): String => "ponycli/envs"
+
+  // Rules
+  fun apply(h: TestHelper) ? =>
+    let cs = _Fixtures.simple_cli_spec()
+    h.log("Spec: " + cs.string())
+
+    let args: Array[String] = [
+      "ignored"
+    ]
+    let envs: Array[String] = [
+      "BOOLR=true",
+      "STRINGR=astring",
+      "INTR=42",
+      "FLOATR=42.0"
+    ]
+    let cmdErr = CommandParser(cs).parse(args, envs)
+    h.log("Parsed: " + cmdErr.string())
+
+    let cmd = match cmdErr | let c: Command => c else error end
+
+    h.assert_eq[Bool](true, cmd.flags("boolr").value as Bool)
+    h.assert_eq[String]("astring", cmd.flags("stringr").value as String)
+    h.assert_eq[I64](42, cmd.flags("intr").value as I64)
+    h.assert_eq[F64](42.0, cmd.flags("floatr").value as F64)
+
+
+class iso _TestFlagStop is UnitTest
+  fun name(): String => "ponycli/flag_stop"
+
+  // Rules 2, 3, 5, 7, 9
+  fun apply(h: TestHelper) ? =>
+    let cs = _Fixtures.simple_cli_spec()
+    h.log("Spec: " + cs.string())
+
+    let args: Array[String] = [
+      "ignored",
+      "-BS=astring", "-I=42", "-F=42.0",
+      "--", "-f=1.0"
+    ]
+    let cmdErr = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmdErr.string())
+
+    let cmd = match cmdErr | let c: Command => c else error end
+
+    h.assert_eq[String]("-f=1.0", cmd.args("words").value as String)
+    h.assert_eq[F64](42.0, cmd.flags("floato").value as F64)
 
 
 class iso _TestChatMin is UnitTest
@@ -209,13 +274,12 @@ class iso _TestChatMin is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.chat_cli_spec()
-    h.log("Command spec: " + cs.string())
+    h.log("Spec: " + cs.string())
 
     let args: Array[String] = ["ignored", "--name=me", "--volume=42"]
-    let vars: Array[String] = [""]
 
-    let cmdErr = CommandParser(cs).parse(args, vars)
-    h.log("Parsed command: " + cmdErr.string())
+    let cmdErr = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmdErr.string())
 
     let cmd = match cmdErr | let c: Command => c else error end
     h.assert_eq[String]("chat", cs.name)
@@ -226,16 +290,15 @@ class iso _TestChatAll is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.chat_cli_spec()
-    h.log("Command spec: " + cs.string())
+    h.log("Spec: " + cs.string())
 
     let args: Array[String] = [
         "ignored",
         "--admin", "--name=carl", "say", "-v80", "hello"
     ]
-    let vars: Array[String] = [""]
 
-    let cmdErr = CommandParser(cs).parse(args, vars)
-    h.log("Parsed command: " + cmdErr.string())
+    let cmdErr = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmdErr.string())
 
     let cmd = match cmdErr | let c: Command => c else error end
 
@@ -271,7 +334,7 @@ primitive _Fixtures
       FlagSpec.boolT("ddd" where short' = 'd')
     ])
 
-  fun shorts_cli_spec(): CommandSpec box ? =>
+  fun simple_cli_spec(): CommandSpec box ? =>
     """
     Builds and returns the spec for a CLI with short flags of each type.
     """
@@ -285,6 +348,8 @@ primitive _Fixtures
       FlagSpec.i64T("into" where short' = 'i', default' = I64(42)),
       FlagSpec.f64T("floatr" where short' = 'F'),
       FlagSpec.f64T("floato" where short' = 'f', default' = F64(42.0))
+    ],[
+      ArgSpec.stringT("words" where default' = "hello")
     ])
 
   fun chat_cli_spec(): CommandSpec box ? =>

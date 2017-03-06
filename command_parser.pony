@@ -1,12 +1,16 @@
 use col = "collections"
 
 class CommandParser
-  let spec: CommandSpec box
-  let parent: (CommandParser box | None)
+  let _spec: CommandSpec box
+  let _parent: (CommandParser box | None)
 
-  new box create(spec': CommandSpec box, parent': (CommandParser box | None) = None) =>
-    spec = spec'
-    parent = parent'
+  new box create(spec': CommandSpec box) =>
+    _spec = spec'
+    _parent = None
+
+  new box _sub(spec': CommandSpec box, parent': CommandParser box) =>
+    _spec = spec'
+    _parent = parent'
 
   fun box parse(
     argv: Array[String] box,
@@ -16,42 +20,55 @@ class CommandParser
     Parses all of the command line tokens and env vars and returns a Command,
     or the first SyntaxError.
     """
-    let flags: col.Map[String,Flag] ref = flags.create()
-    let args: col.Map[String,Arg] ref = args.create()
     let tokens = argv.clone()
     try tokens.shift() end  // argv[0] is the program name, so skip it
-    _parse_command(tokens, envs, flags, args)
+    let flags: col.Map[String,Flag] ref = flags.create()
+    let args: col.Map[String,Arg] ref = args.create()
+    // Turn env array into a k,v map
+    let envsmap: col.Map[String, String] ref = envsmap.create()
+    match envs
+      | let envsarr: Array[String] box =>
+        for e in envsarr.values() do
+          let eqpos = try e.find("=") else 0 end // should find 1 =
+          let ek: String val = e.substring(0, eqpos)
+          let ev: String val = e.substring(eqpos+1)
+          envsmap.update(ek, ev)
+        end
+    end
+    _parse_command(tokens, flags, args, envsmap, false)
 
   fun box _parse_command(
     tokens: Array[String] ref,
-    envs: (Array[String] box | None),
     flags: col.Map[String,Flag] ref,
-    args: col.Map[String,Arg] ref): (Command | SyntaxError)
+    args: col.Map[String,Arg] ref,
+    envsmap: col.Map[String, String] box,
+    fstop: Bool): (Command | SyntaxError)
   =>
     """
     Parses all of the command line tokens and env vars into the given flags
     and args maps. Returns the first SyntaxError, or the Command when OK.
     """
+    var flags_stop = fstop
     var arg_pos: USize = 0
     while tokens.size() > 0 do
       let token = try tokens.shift() else "" end
-      if token.compare_sub("--", 2, 0) == Equal then
-        match _parse_long_flag(token.substring(2), tokens, envs)
+      if token == "--" then
+        // TODO(cq) if "--" is lone, then it's the flag terminator
+        flags_stop = true
+      elseif not flags_stop and (token.compare_sub("--", 2, 0) == Equal) then
+        match _parse_long_flag(token.substring(2), tokens)
         | let f: Flag => flags.update(f.spec.name, f)
         | let se: SyntaxError => return se
         end
-      elseif token.compare_sub("-", 1, 0) == Equal then
-        match _parse_short_flags(token.substring(1), tokens, envs)
+      elseif not flags_stop and ((token.compare_sub("-", 1, 0) == Equal) and (token.size() > 1)) then
+        match _parse_short_flags(token.substring(1), tokens)
         | let fs: Array[Flag] => for f in fs.values() do flags.update(f.spec.name, f) end
         | let se: SyntaxError => return se
         end
       else // no dashes, must be a command or an arg
         match _child_command(token)
         | let cs: CommandSpec box =>
-          match CommandParser(cs, this)._parse_command(tokens, envs, flags, args)
-          | let c: Command => return c  // propagate out leaf command
-          | let se: SyntaxError => return se
-          end
+          return CommandParser._sub(cs, this)._parse_command(tokens, flags, args, envsmap, flags_stop)
         else
           match _parse_arg(token, arg_pos)
           | let a: Arg => args.update(a.spec.name, a); arg_pos = arg_pos + 1
@@ -60,31 +77,55 @@ class CommandParser
         end
       end
     end
-    // Check for missing flags and args: fill in defaults or error if missing.
-    for fs in spec.flags.values() do
+
+    // Fill in flag values from env or from coded defaults.
+    for fs in _spec.flags.values() do
+      if not flags.contains(fs.name) then
+        // Lookup and use env vars before code defaults
+        let varname: String val = fs.name.upper()  // TODO(cq) maybe prefix
+        if envsmap.contains(varname) then
+          let vs = try envsmap(varname) else "" end // else? we know it's in there
+          let v: Value = match ValueParser.parse(fs.typ, vs)
+            | let v: Value => v
+            | let e: SyntaxError => return e
+            else
+              false // Pony should know e,v above covers all match types
+            end
+          flags.update(fs.name, Flag(fs, v))
+        else
+          if not fs.required then
+            flags.update(fs.name, Flag(fs, fs.default))
+          end
+        end
+      end
+    end
+
+    // Check for missing flags and error if found.
+    for fs in _spec.flags.values() do
       if not flags.contains(fs.name) then
         if fs.required then
           return SyntaxError(fs.name, "missing value for required flag")
         end
-        flags.update(fs.name, Flag(fs, fs.default))
       end
     end
-    while arg_pos < spec.args.size() do
+
+    // Check for missing args and error if found.
+    while arg_pos < _spec.args.size() do
       try
-        let ars = spec.args(arg_pos)
+        let ars = _spec.args(arg_pos)
         if ars.required then
-          return SyntaxError(ars.name, "missing value for required argument " + arg_pos.string() + " / " + spec.args.size().string())
+          return SyntaxError(ars.name, "missing value for required argument")
         end
         args.update(ars.name, Arg(ars, ars.default))
       end
       arg_pos = arg_pos + 1
     end
-    Command(spec, flags, args)
+
+    Command(_spec, flags, args)
 
   fun box _parse_long_flag(
     token: String,
-    args: Array[String] ref,
-    vars: (Array[String] box | None) = None): (Flag | SyntaxError)
+    args: Array[String] ref): (Flag | SyntaxError)
   =>
     """
     --fopt=foo => --fopt has argument foo
@@ -94,7 +135,7 @@ class CommandParser
     let name = try parts(0) else "???" end
     let farg = try parts(1) else None end
     match _flag_with_name(name)
-    | let fs: FlagSpec box => FlagParser.parse(fs, farg, args, vars)
+    | let fs: FlagSpec box => FlagParser.parse(fs, farg, args)
     | None => SyntaxError(name, "unknown long flag")
     else
       SyntaxError(name, "Pony: shouldn't allow this")
@@ -102,8 +143,7 @@ class CommandParser
 
   fun box _parse_short_flags(
     token: String,
-    args: Array[String] ref,
-    vars: (Array[String] box | None) = None): (Array[Flag] | SyntaxError)
+    args: Array[String] ref): (Array[Flag] | SyntaxError)
   =>
     """
     if 'f' requires an argument
@@ -126,7 +166,7 @@ class CommandParser
       let c = try shorts.shift() else 0 end  // Should never error since checked
       match _flag_with_short(c)
       | let fs: FlagSpec box =>
-        if fs.requires_arg() and (shorts.size() > 0) then
+        if fs._requires_arg() and (shorts.size() > 0) then
           // flag needs an arg, so consume the remainder of the shorts for farg
           if farg is None then
             farg = shorts.clone()
@@ -136,7 +176,7 @@ class CommandParser
           end
         end
         let arg = if shorts.size() == 0 then farg else None end
-        match FlagParser.parse(fs, arg, args, vars)
+        match FlagParser.parse(fs, arg, args)
         | let f: Flag => flags.push(f)
         | let se: SyntaxError => return se
         end
@@ -148,7 +188,7 @@ class CommandParser
     flags
 
   fun box _child_command(name: String): (CommandSpec box | None) =>
-    for c in spec.commands.values() do
+    for c in _spec.commands.values() do
       if c.name == name then
         return c
       end
@@ -157,7 +197,7 @@ class CommandParser
 
   fun box _parse_arg(token: String, arg_pos: USize): (Arg | SyntaxError) =>
     try
-      let arg_spec = spec.args(arg_pos)
+      let arg_spec = _spec.args(arg_pos)
       ArgParser.parse(arg_spec, token)
     else
       return SyntaxError(token, "too many positional arguments")
@@ -165,24 +205,24 @@ class CommandParser
 
   fun box _flag_with_name(name: String): (FlagSpec box | None) =>
     // TODO(cq): should be able to look this up by name
-    for f in spec.flags.values() do
+    for f in _spec.flags.values() do
       if f.name == name then
         return f
       end
     end
-    match parent
+    match _parent
     | let p: CommandParser box => p._flag_with_name(name)
     else
       None
     end
 
   fun box _flag_with_short(short: U8): (FlagSpec box | None) =>
-    for f in spec.flags.values() do
-      if f.has_short(short) then
+    for f in _spec.flags.values() do
+      if f._has_short(short) then
         return f
       end
     end
-    match parent
+    match _parent
     | let p: CommandParser box => p._flag_with_short(short)
     else
       None
@@ -195,12 +235,11 @@ primitive FlagParser
   fun box parse(
     spec: FlagSpec box,
     farg: (String|None),
-    args: Array[String] ref,
-    vars: (Array[String] box | None) = None): (Flag | SyntaxError)
+    args: Array[String] ref): (Flag | SyntaxError)
   =>
     // Grab the flag-arg if provided, else consume an arg if one is required.
     let arg = match farg
-      | (let fn: None) if spec.requires_arg() => try args.shift() else None end
+      | (let fn: None) if spec._requires_arg() => try args.shift() else None end
       else
         farg
       end
@@ -215,8 +254,8 @@ primitive FlagParser
           SyntaxError(a, "Pony: shouldn't need this")
       end
     else
-      if not spec.requires_arg() then
-        Flag(spec, spec.default_arg())
+      if not spec._requires_arg() then
+        Flag(spec, spec._default_arg())
       else
         SyntaxError(spec.name, "missing arg for flag")
       end

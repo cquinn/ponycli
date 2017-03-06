@@ -46,6 +46,3 @@ class box Arg
 
   fun string(): String =>
     "(" + spec.string() + "=)" + value.string()
-
-
-type Value is (Bool | String | I64 | F64)
