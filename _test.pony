@@ -29,7 +29,6 @@ class iso _TestMinimal is UnitTest
     let cs = CommandSpec.leaf("minimal", "", [
         FlagSpec.boolT("aflag", "")
     ])
-    h.log("Spec: " + cs.string())
 
     h.assert_eq[String]("minimal", cs.name)
 
@@ -48,7 +47,6 @@ class iso _TestBadName is UnitTest
   fun apply(h: TestHelper) ? =>
     try
         let cs = CommandSpec.leaf("min imal", "")
-        h.log("Spec: " + cs.string())
     else
         return // error was expected
     end
@@ -63,7 +61,6 @@ class iso _TestHyphenArg is UnitTest
     let cs = CommandSpec.leaf("minimal" where args' = [
         ArgSpec.stringT("name", "")
     ])
-    h.log("Spec: " + cs.string())
     let args: Array[String] = ["ignored", "-"]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
@@ -79,7 +76,6 @@ class iso _TestBools is UnitTest
   // Rules 2, 3, 5, 7 w/ Bools
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.bools_cli_spec()
-    h.log("Spec: " + cs.string())
 
     let args: Array[String] = ["ignored", "-ab", "-c=true", "-d=false"]
     let cmdErr = CommandParser(cs).parse(args)
@@ -99,7 +95,6 @@ class iso _TestDefaults is UnitTest
   // Rules 2, 3, 5, 6
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()
-    h.log("Spec: " + cs.string())
 
     let args: Array[String] = ["ignored", "-B", "-S--", "-I42", "-F42.0"]
     let cmdErr = CommandParser(cs).parse(args)
@@ -119,7 +114,6 @@ class iso _TestShortsAdj is UnitTest
   // Rules 2, 3, 5, 6, 8
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()
-    h.log("Spec: " + cs.string())
 
     let args: Array[String] = ["ignored", "-BS--", "-I42", "-F42.0"]
     let cmdErr = CommandParser(cs).parse(args)
@@ -139,7 +133,6 @@ class iso _TestShortsEq is UnitTest
   // Rules 2, 3, 5, 7
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()
-    h.log("Spec: " + cs.string())
 
     let args: Array[String] = ["ignored", "-BS=astring", "-I=42", "-F=42.0"]
     let cmdErr = CommandParser(cs).parse(args)
@@ -159,7 +152,6 @@ class iso _TestShortsNext is UnitTest
   // Rules 2, 3, 5, 8
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()
-    h.log("Spec: " + cs.string())
 
     let args: Array[String] = [
         "ignored", "-BS", "--", "-I", "42", "-F", "42.0"
@@ -181,7 +173,6 @@ class iso _TestLongsEq is UnitTest
   // Rules 4, 5, 7
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()
-    h.log("Spec: " + cs.string())
 
     let args: Array[String] = [
         "ignored",
@@ -204,7 +195,6 @@ class iso _TestLongsNext is UnitTest
   // Rules 4, 5, 8
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()
-    h.log("Spec: " + cs.string())
 
     let args: Array[String] = [
         "ignored",
@@ -226,7 +216,6 @@ class iso _TestEnvs is UnitTest
   // Rules
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()
-    h.log("Spec: " + cs.string())
 
     let args: Array[String] = [
       "ignored"
@@ -254,7 +243,6 @@ class iso _TestFlagStop is UnitTest
   // Rules 2, 3, 5, 7, 9
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()
-    h.log("Spec: " + cs.string())
 
     let args: Array[String] = [
       "ignored",
@@ -275,7 +263,6 @@ class iso _TestChatMin is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.chat_cli_spec()
-    h.log("Spec: " + cs.string())
 
     let args: Array[String] = ["ignored", "--name=me", "--volume=42"]
 
@@ -291,7 +278,6 @@ class iso _TestChatAll is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.chat_cli_spec()
-    h.log("Spec: " + cs.string())
 
     let args: Array[String] = [
         "ignored",
@@ -327,12 +313,13 @@ class iso _TestHelp is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.chat_cli_spec()
-    h.log("Spec: " + cs.string())
 
-    //let help = CommandHelp.syntax(cs)
-    //h.log(help)
+    let chErr = Help.for_command(cs, ["config", "server"])
+    let ch = match chErr | let c: CommandHelp => c else error end
 
-    //h.fail()
+    let help = ch.help_string()
+    h.log(help)
+    h.assert_true(help.contains("Address of the server"))
 
 
 primitive _Fixtures

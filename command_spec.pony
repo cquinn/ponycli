@@ -89,28 +89,22 @@ class CommandSpec
       end
       nm
 
-  fun ref command(cmd: CommandSpec) ? =>
+  fun ref add_command(cmd: CommandSpec) ? =>
     """
     Add an additional child command to this parent command.
     """
     if args.size() > 0 then error end
     commands.update(cmd.name, cmd)
 
-  fun box string(): String val =>
-    let s = name.clone()
-    for f in flags.values() do
-      s.append(" ")
-      s.append(f.string())
-    end
-    for a in args.values() do
-      s.append(" ")
-      s.append(a.string())
-    end
-    for c in commands.values() do
-      s.append(" ")
-      s.append(c.string())
-    end
-    s
+  fun ref add_help() ? =>
+    """
+    Add a standard help command to this parent command.
+    """
+    if args.size() > 0 then error end
+    let help = CommandSpec.leaf("help", "", Array[FlagSpec](), [
+      ArgSpec.stringT("command" where default'="")
+    ])
+    commands.update(help.name, help)
 
   fun help_string(): String =>
     let s = name.clone()

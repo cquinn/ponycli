@@ -1,7 +1,11 @@
 
-primitive HelpParser
+primitive Help
 
-  fun parse(cs: CommandSpec box, argv: Array[String] box): (CommandHelp | SyntaxError)
+  fun general(cs: CommandSpec box): CommandHelp
+  =>
+    CommandHelp._create(None, cs)
+
+  fun for_command(cs: CommandSpec box, argv: Array[String] box): (CommandHelp | SyntaxError)
   =>
     let ch = CommandHelp._create(None, cs)
     _parse(cs, ch, argv)
@@ -40,33 +44,6 @@ class box CommandHelp
       spec.name
     end
 
-  fun any_flags(): Bool =>
-    if spec.flags.size() > 0 then
-      true
-    else
-      match parent
-      | let p: CommandHelp => p.any_flags()
-      else
-        false
-      end
-    end
-
-  fun all_flags(): Array[FlagSpec box] =>
-    let flags = Array[FlagSpec box]()
-    _all_flags(flags)
-    flags
-
-  fun _all_flags(flags: Array[FlagSpec box]) =>
-    match parent
-    | let p: CommandHelp => p._all_flags(flags)
-    end
-    for f in spec.flags.values() do
-      flags.push(f)
-    end
-
-  fun any_commands(): Bool =>
-    spec.commands.size() > 0
-
   fun help_string(): String =>
     let w: StringWriter ref = StringWriter
     print_help(w)
@@ -85,7 +62,7 @@ class box CommandHelp
     end
     if spec.commands.size() > 0 then
       w.write("\nCommands:\n")
-      print_commands(w, spec)
+      print_commands(w)
     end
     let args = spec.args
     if args.size() > 0 then
@@ -117,9 +94,9 @@ class box CommandHelp
     end
     Columns.print(w, cols)
 
-  fun print_commands(w: Writer, cs: CommandSpec box) =>
+  fun print_commands(w: Writer) =>
     let cols = Array[(String,String)]()
-    _list_commands(cs, cols, 1)
+    _list_commands(spec, cols, 1)
     Columns.print(w, cols)
 
   fun _list_commands(cs: CommandSpec box, cols: Array[(String,String)], level: USize) =>
@@ -134,6 +111,30 @@ class box CommandHelp
       cols.push(("  " + a.help_string(), a.descr))
     end
     Columns.print(w, cols)
+
+  fun any_flags(): Bool =>
+    if spec.flags.size() > 0 then
+      true
+    else
+      match parent
+      | let p: CommandHelp => p.any_flags()
+      else
+        false
+      end
+    end
+
+  fun all_flags(): Array[FlagSpec box] =>
+    let flags = Array[FlagSpec box]()
+    _all_flags(flags)
+    flags
+
+  fun _all_flags(flags: Array[FlagSpec box]) =>
+    match parent
+    | let p: CommandHelp => p._all_flags(flags)
+    end
+    for f in spec.flags.values() do
+      flags.push(f)
+    end
 
 
 interface Writer
