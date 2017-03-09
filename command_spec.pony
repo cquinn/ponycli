@@ -112,8 +112,16 @@ class CommandSpec
     end
     s
 
+  fun help_string(): String =>
+    let s = name.clone()
+    s.append(" ")
+    for a in args.values() do
+      s.append(a.help_string())
+    end
+    s
 
-class FlagSpec
+
+class /*box*/ FlagSpec
   """
   FlagSpec describes the specification of a flag.
   """
@@ -167,7 +175,7 @@ class FlagSpec
     (typ, default, required) = _init(F64Type, default')
 
   // Other than bools, all flags require args.
-  fun box _requires_arg(): Bool =>
+  fun _requires_arg(): Bool =>
     match typ |(let b: BoolType) => false else true end
     // TODO: why can't Pony match on just type? |BoolType=>...
 
@@ -186,8 +194,17 @@ class FlagSpec
     "--" + name + "[" + typ.string() + "]" +
       if not required then "(=" + default.string() + ")" else "" end
 
+  fun help_string(): String =>
+    let s = match short
+      | let ss: U8 => "-" + String.from_utf32(ss.u32()) + ", "
+      else
+        "    "
+      end
+    let l = "--" + name
+    s + l
 
-class ArgSpec
+
+class /*box*/ ArgSpec
   """
   ArgSpec describes the specification of a positional argument.
   """
@@ -235,6 +252,9 @@ class ArgSpec
   fun string(): String =>
     name + "[" + typ.string() + "]" +
       if not required then "(=" + default.string() + ")" else "" end
+
+  fun help_string(): String =>
+    "<" + name + ">"
 
 
 type Value is (Bool | String | I64 | F64)

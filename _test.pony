@@ -19,6 +19,7 @@ actor Main is TestList
     test(_TestFlagStop)
     test(_TestChatMin)
     test(_TestChatAll)
+    test(_TestHelp)
 
 
 class iso _TestMinimal is UnitTest
@@ -321,13 +322,26 @@ class iso _TestChatAll is UnitTest
     h.assert_eq[String]("hello", a1.value as String)
 
 
+class iso _TestHelp is UnitTest
+  fun name(): String => "ponycli/help"
+
+  fun apply(h: TestHelper) ? =>
+    let cs = _Fixtures.chat_cli_spec()
+    h.log("Spec: " + cs.string())
+
+    //let help = CommandHelp.syntax(cs)
+    //h.log(help)
+
+    //h.fail()
+
+
 primitive _Fixtures
 
   fun bools_cli_spec(): CommandSpec box ? =>
     """
     Builds and returns the spec for a CLI with four bool flags.
     """
-    CommandSpec.leaf("bools", "a sample CLI with four bool flags", [
+    CommandSpec.leaf("bools", "A sample CLI with four bool flags", [
       FlagSpec.boolT("aaa" where short' = 'a'),
       FlagSpec.boolT("bbb" where short' = 'b'),
       FlagSpec.boolT("ccc" where short' = 'c'),
@@ -339,7 +353,7 @@ primitive _Fixtures
     Builds and returns the spec for a CLI with short flags of each type.
     """
     CommandSpec.leaf("shorts",
-        "a sample program with various short flags, optional and required", [
+        "A sample program with various short flags, optional and required", [
       FlagSpec.boolT("boolr" where short' = 'B'),
       FlagSpec.boolT("boolo" where short' = 'b', default' = true),
       FlagSpec.stringT("stringr" where short' = 'S'),
@@ -356,17 +370,22 @@ primitive _Fixtures
     """
     Builds and returns the spec for a sample chat client's CLI.
     """
-    CommandSpec.parent("chat", "sample chat program", [
-      FlagSpec.boolT("admin", "chat as admin" where default' = false),
-      FlagSpec.stringT("name", "your name" where short' = 'n'),
-      FlagSpec.f64T("volume", "chat volume" where short' = 'v')
+    CommandSpec.parent("chat", "A sample chat program", [
+      FlagSpec.boolT("admin", "Chat as admin" where default' = false),
+      FlagSpec.stringT("name", "Your name" where short' = 'n'),
+      FlagSpec.f64T("volume", "Chat volume" where short' = 'v')
     ],[
-      CommandSpec.leaf("say", "say something", Array[FlagSpec](), [
-        ArgSpec.stringT("words")
+      CommandSpec.leaf("say", "Say something", Array[FlagSpec](), [
+        ArgSpec.stringT("words", "The words to say")
       ]),
-      CommandSpec.leaf("emote", "send an emotion", [
-        FlagSpec.f64T("speed", "emote play speed" where default' = F64(1.0))
+      CommandSpec.leaf("emote", "Send an emotion", [
+        FlagSpec.f64T("speed", "Emote play speed" where default' = F64(1.0))
       ],[
-        ArgSpec.stringT("emotion", "emote to send")
+        ArgSpec.stringT("emotion", "Emote to send")
+      ]),
+      CommandSpec.parent("config", "Configuration commands", Array[FlagSpec](), [
+        CommandSpec.leaf("server", "Server configuration", Array[FlagSpec](), [
+          ArgSpec.stringT("address", "Address of the server")
+        ])
       ])
     ])

@@ -24,7 +24,10 @@ class CommandParser
     try tokens.shift() end  // argv[0] is the program name, so skip it
     let flags: col.Map[String,Flag] ref = flags.create()
     let args: col.Map[String,Arg] ref = args.create()
-    // Turn env array into a k,v map
+    _parse_command(tokens, flags, args, env_map(envs), false)
+
+  // Turn env array into a k,v map
+  fun env_map(envs: (Array[String] box | None)): col.Map[String, String] box =>
     let envsmap: col.Map[String, String] ref = envsmap.create()
     match envs
       | let envsarr: Array[String] box =>
@@ -35,7 +38,7 @@ class CommandParser
           envsmap.update(ek, ev)
         end
     end
-    _parse_command(tokens, flags, args, envsmap, false)
+    envsmap
 
   fun box _parse_command(
     tokens: Array[String] ref,
@@ -50,25 +53,33 @@ class CommandParser
     """
     var flags_stop = fstop
     var arg_pos: USize = 0
+
     while tokens.size() > 0 do
       let token = try tokens.shift() else "" end
       if token == "--" then
         // TODO(cq) if "--" is lone, then it's the flag terminator
         flags_stop = true
+
       elseif not flags_stop and (token.compare_sub("--", 2, 0) == Equal) then
         match _parse_long_flag(token.substring(2), tokens)
         | let f: Flag => flags.update(f.spec.name, f)
         | let se: SyntaxError => return se
         end
+
       elseif not flags_stop and ((token.compare_sub("-", 1, 0) == Equal) and (token.size() > 1)) then
         match _parse_short_flags(token.substring(1), tokens)
         | let fs: Array[Flag] => for f in fs.values() do flags.update(f.spec.name, f) end
         | let se: SyntaxError => return se
         end
+
       else // no dashes, must be a command or an arg
-        match _child_command(token)
-        | let cs: CommandSpec box =>
-          return CommandParser._sub(cs, this)._parse_command(tokens, flags, args, envsmap, flags_stop)
+        if _spec.commands.contains(token) then
+          try
+            match _spec.commands(token)
+            | let cs: CommandSpec box =>
+              return CommandParser._sub(cs, this)._parse_command(tokens, flags, args, envsmap, flags_stop)
+            end
+          end
         else
           match _parse_arg(token, arg_pos)
           | let a: Arg => args.update(a.spec.name, a); arg_pos = arg_pos + 1
@@ -186,14 +197,6 @@ class CommandParser
       end
     end
     flags
-
-  fun box _child_command(name: String): (CommandSpec box | None) =>
-    for c in _spec.commands.values() do
-      if c.name == name then
-        return c
-      end
-    end
-    None
 
   fun box _parse_arg(token: String, arg_pos: USize): (Arg | SyntaxError) =>
     try
