@@ -1,6 +1,10 @@
 use col = "collections"
 
 class box Command
+  """
+  Command contains all of the information describing a command with its spec
+  and given flags and arguments, ready to execute.
+  """
   let spec: CommandSpec box
   let flags: col.Map[String, Flag]
   let args: col.Map[String, Arg]
@@ -24,11 +28,15 @@ class box Command
     end
     s
 
+
 class box Flag
+  """
+  Flag contains a spec and a value for a given flag.
+  """
   let spec: FlagSpec box
   let value: Value
 
-  new create(spec': FlagSpec box, value': Value) =>
+  new create(spec': FlagSpec, value': Value) =>
     spec = spec'
     value = value'
 
@@ -37,10 +45,13 @@ class box Flag
 
 
 class box Arg
+  """
+  Arg contains a spec and a value for a given arg.
+  """
   let spec: ArgSpec box
   let value: Value
 
-  new create(spec': ArgSpec box, value': Value) =>
+  new create(spec': ArgSpec, value': Value) =>
     spec = spec'
     value = value'
 

@@ -36,11 +36,11 @@ class CommandSpec
   """
   let name: String
   let descr: String
-  let flags: col.Map[String, FlagSpec box] = flags.create()
+  let flags: col.Map[String, FlagSpec] = flags.create()
 
   // A parent commands can have sub-commands; leaf commands can have args.
   let commands: col.Map[String, CommandSpec box] = commands.create()
-  let args: Array[ArgSpec box] = args.create()
+  let args: Array[ArgSpec] = args.create()
 
   new parent(name': String, descr': String = "",
     flags': Array[FlagSpec] box = Array[FlagSpec](),
@@ -115,7 +115,7 @@ class CommandSpec
     s
 
 
-class /*box*/ FlagSpec
+class box FlagSpec
   """
   FlagSpec describes the specification of a flag.
   """
@@ -136,7 +136,7 @@ class /*box*/ FlagSpec
       (typ', default' as Value, false)
     end
 
-  new boolT(name': String, descr': String = "",
+  new box boolT(name': String, descr': String = "",
     short': (U8 | None) = None, default': (Bool | None) = None) ?
   =>
     name = name'
@@ -144,7 +144,7 @@ class /*box*/ FlagSpec
     short = short'
     (typ, default, required) = _init(BoolType, default')
 
-  new stringT(name': String, descr': String = "",
+  new box stringT(name': String, descr': String = "",
     short': (U8 | None) = None, default': (String | None) = None) ?
   =>
     name = name'
@@ -152,7 +152,7 @@ class /*box*/ FlagSpec
     short = short'
     (typ, default, required) = _init(StringType, default')
 
-  new i64T(name': String, descr': String = "",
+  new box i64T(name': String, descr': String = "",
     short': (U8 | None) = None, default': (I64 | None) = None) ?
   =>
     name = name'
@@ -160,7 +160,7 @@ class /*box*/ FlagSpec
     short = short'
     (typ, default, required) = _init(I64Type, default')
 
-  new f64T(name': String, descr': String = "",
+  new box f64T(name': String, descr': String = "",
     short': (U8 | None) = None, default': (F64 | None) = None) ?
   =>
     name = name'
@@ -177,7 +177,7 @@ class /*box*/ FlagSpec
   fun _default_arg(): Value =>
     match typ |(let b: BoolType) => true else false end
 
-  fun box _has_short(sh: U8): Bool =>
+  fun _has_short(sh: U8): Bool =>
     match short
     | let ss: U8 => sh == ss
     else
@@ -198,7 +198,7 @@ class /*box*/ FlagSpec
     s + l
 
 
-class /*box*/ ArgSpec
+class box ArgSpec
   """
   ArgSpec describes the specification of a positional argument.
   """
@@ -219,25 +219,25 @@ class /*box*/ ArgSpec
       (typ', default' as Value, false)
     end
 
-  new boolT(name': String, descr': String="", default': (Bool|None)=None) ?
+  new box boolT(name': String, descr': String="", default': (Bool|None)=None) ?
   =>
     name = name'
     descr = descr'
     (typ, default, required) = _init(BoolType, default')
 
-  new stringT(name': String, descr': String="", default': (String|None)=None) ?
+  new box stringT(name': String, descr': String="", default': (String|None)=None) ?
   =>
     name = name'
     descr = descr'
     (typ, default, required) = _init(StringType, default')
 
-  new i64T(name': String, descr': String="", default': (I64|None)=None) ?
+  new box i64T(name': String, descr': String="", default': (I64|None)=None) ?
   =>
     name = name'
     descr = descr'
     (typ, default, required) = _init(I64Type, default')
 
-  new f64T(name': String, descr': String="", default': (F64|None)=None) ?
+  new box f64T(name': String, descr': String="", default': (F64|None)=None) ?
   =>
     name = name'
     descr = descr'

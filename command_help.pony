@@ -30,6 +30,12 @@ primitive Help
     ch
 
 class box CommandHelp
+  """
+  CommandHelp encapsulates the information needed to generate a user help
+  message for a given CommandSpec, optionally with a specific command identified
+  to get help for. Use `Help.general()` or `Help.for_command()` to create a
+  CommandHelp instance.
+  """
   let parent: (CommandHelp box | None)
   let spec: CommandSpec box
 
@@ -136,7 +142,11 @@ class box CommandHelp
       flags.push(f)
     end
 
-
+"""
+This interface and two classes allow the help output to go to a general Writer
+that can be implemented for string creation or to an OutStream. Or other targets.
+This could be polished up and moved into a more central package.
+"""
 interface Writer
   fun ref write(data: ByteSeq)
 
