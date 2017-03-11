@@ -66,10 +66,13 @@ class CommandParser
         | let se: SyntaxError => return se
         end
 
-      elseif not flags_stop and ((token.compare_sub("-", 1, 0) == Equal) and (token.size() > 1)) then
+      elseif not flags_stop and
+        ((token.compare_sub("-", 1, 0) == Equal) and (token.size() > 1)) then
         match _parse_short_flags(token.substring(1), tokens)
-        | let fs: Array[Flag] => for f in fs.values() do flags.update(f.spec.name, f) end
-        | let se: SyntaxError => return se
+        | let fs: Array[Flag] =>
+          for f in fs.values() do flags.update(f.spec.name, f) end
+        | let se: SyntaxError =>
+          return se
         end
 
       else // no dashes, must be a command or an arg
@@ -231,7 +234,8 @@ class CommandParser
       None
     end
 
-  fun short_string(c: U8): String => recover String().unshift(c) end
+  fun short_string(c: U8): String =>
+    recover String.from_utf32(c.u32()) end
 
 
 primitive FlagParser
@@ -242,7 +246,8 @@ primitive FlagParser
   =>
     // Grab the flag-arg if provided, else consume an arg if one is required.
     let arg = match farg
-      | (let fn: None) if spec._requires_arg() => try args.shift() else None end
+      | (let fn: None) if spec._requires_arg() =>
+        try args.shift() else None end
       else
         farg
       end
