@@ -5,12 +5,14 @@ primitive Help
   =>
     CommandHelp._create(None, cs)
 
-  fun for_command(cs: CommandSpec box, argv: Array[String] box): (CommandHelp | SyntaxError)
+  fun for_command(cs: CommandSpec box, argv: Array[String] box):
+    (CommandHelp | SyntaxError)
   =>
     let ch = CommandHelp._create(None, cs)
     _parse(cs, ch, argv)
 
-  fun _parse(cs: CommandSpec box, ch: CommandHelp, argv: Array[String] box): (CommandHelp | SyntaxError)
+  fun _parse(cs: CommandSpec box, ch: CommandHelp, argv: Array[String] box):
+    (CommandHelp | SyntaxError)
   =>
     if argv.size() > 0 then
       try
@@ -32,9 +34,9 @@ primitive Help
 class box CommandHelp
   """
   CommandHelp encapsulates the information needed to generate a user help
-  message for a given CommandSpec, optionally with a specific command identified
-  to get help for. Use `Help.general()` or `Help.for_command()` to create a
-  CommandHelp instance.
+  message for a given CommandSpec, optionally with a specific command
+  identified to get help for. Use `Help.general()` or `Help.for_command()` to
+  create a CommandHelp instance.
   """
   let parent: (CommandHelp box | None)
   let spec: CommandSpec box
@@ -61,10 +63,10 @@ class box CommandHelp
     w.write(spec.descr + "\n")
     w.write("\n")
 
-    let flags = all_flags()
-    if flags.size() > 0 then
-      w.write("Flags:\n")
-      print_flags(w, flags)
+    let options = all_options()
+    if options.size() > 0 then
+      w.write("Options:\n")
+      print_options(w, options)
     end
     if spec.commands.size() > 0 then
       w.write("\nCommands:\n")
@@ -78,8 +80,8 @@ class box CommandHelp
 
   fun print_usage(w: Writer) =>
     w.write("usage: " + fullname())
-    if any_flags() then
-      w.write(" [<flags>]")
+    if any_options() then
+      w.write(" [<options>]")
     end
     if spec.commands.size() > 0 then
       w.write(" <command>")
@@ -93,10 +95,10 @@ class box CommandHelp
     end
     w.write("\n")
 
-  fun print_flags(w: Writer, flags: Array[FlagSpec box] box) =>
+  fun print_options(w: Writer, options: Array[OptionSpec box] box) =>
     let cols = Array[(String,String)]()
-    for f in flags.values() do
-      cols.push(("  " + f.help_string(), f.descr))
+    for o in options.values() do
+      cols.push(("  " + o.help_string(), o.descr))
     end
     Columns.print(w, cols)
 
@@ -111,41 +113,41 @@ class box CommandHelp
       _list_commands(c, cols, level + 1)
     end
 
-  fun print_args(w: Writer, args: Array[ArgSpec box] box) =>
+  fun print_args(w: Writer, args: Array[ArgSpec] box) =>
     let cols = Array[(String,String)]()
     for a in args.values() do
       cols.push(("  " + a.help_string(), a.descr))
     end
     Columns.print(w, cols)
 
-  fun any_flags(): Bool =>
-    if spec.flags.size() > 0 then
+  fun any_options(): Bool =>
+    if spec.options.size() > 0 then
       true
     else
       match parent
-      | let p: CommandHelp => p.any_flags()
+      | let p: CommandHelp => p.any_options()
       else
         false
       end
     end
 
-  fun all_flags(): Array[FlagSpec box] =>
-    let flags = Array[FlagSpec box]()
-    _all_flags(flags)
-    flags
+  fun all_options(): Array[OptionSpec box] =>
+    let options = Array[OptionSpec box]()
+    _all_options(options)
+    options
 
-  fun _all_flags(flags: Array[FlagSpec box]) =>
+  fun _all_options(options: Array[OptionSpec box]) =>
     match parent
-    | let p: CommandHelp => p._all_flags(flags)
+    | let p: CommandHelp => p._all_options(options)
     end
-    for f in spec.flags.values() do
-      flags.push(f)
+    for o in spec.options.values() do
+      options.push(o)
     end
 
 """
 This interface and two classes allow the help output to go to a general Writer
-that can be implemented for string creation or to an OutStream. Or other targets.
-This could be polished up and moved into a more central package.
+that can be implemented for string creation or to an OutStream. Or other
+targets. This could be polished up and moved into a more central package.
 """
 interface Writer
   fun ref write(data: ByteSeq)

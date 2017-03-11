@@ -16,7 +16,7 @@ actor Main is TestList
     test(_TestLongsEq)
     test(_TestLongsNext)
     test(_TestEnvs)
-    test(_TestFlagStop)
+    test(_TestOptionStop)
     test(_TestChatMin)
     test(_TestChatAll)
     test(_TestHelp)
@@ -27,7 +27,7 @@ class iso _TestMinimal is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let cs = CommandSpec.leaf("minimal", "", [
-        FlagSpec.boolT("aflag", "")
+        OptionSpec.bool("aflag", "")
     ])
 
     h.assert_eq[String]("minimal", cs.name)
@@ -38,7 +38,7 @@ class iso _TestMinimal is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[Bool](true, cmd.flags("aflag").value as Bool)
+    h.assert_eq[Bool](true, cmd.options("aflag").value as Bool)
 
 
 class iso _TestBadName is UnitTest
@@ -59,7 +59,7 @@ class iso _TestHyphenArg is UnitTest
   // Rule 1
   fun apply(h: TestHelper) ? =>
     let cs = CommandSpec.leaf("minimal" where args' = [
-        ArgSpec.stringT("name", "")
+        ArgSpec.string("name", "")
     ])
     let args: Array[String] = ["ignored", "-"]
     let cmdErr = CommandParser(cs).parse(args)
@@ -83,10 +83,10 @@ class iso _TestBools is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[Bool](true, cmd.flags("aaa").value as Bool)
-    h.assert_eq[Bool](true, cmd.flags("bbb").value as Bool)
-    h.assert_eq[Bool](true, cmd.flags("ccc").value as Bool)
-    h.assert_eq[Bool](false, cmd.flags("ddd").value as Bool)
+    h.assert_eq[Bool](true, cmd.options("aaa").value as Bool)
+    h.assert_eq[Bool](true, cmd.options("bbb").value as Bool)
+    h.assert_eq[Bool](true, cmd.options("ccc").value as Bool)
+    h.assert_eq[Bool](false, cmd.options("ddd").value as Bool)
 
 
 class iso _TestDefaults is UnitTest
@@ -102,10 +102,10 @@ class iso _TestDefaults is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[Bool](true, cmd.flags("boolo").value as Bool)
-    h.assert_eq[String]("astring", cmd.flags("stringo").value as String)
-    h.assert_eq[I64](42, cmd.flags("into").value as I64)
-    h.assert_eq[F64](42.0, cmd.flags("floato").value as F64)
+    h.assert_eq[Bool](true, cmd.options("boolo").value as Bool)
+    h.assert_eq[String]("astring", cmd.options("stringo").value as String)
+    h.assert_eq[I64](42, cmd.options("into").value as I64)
+    h.assert_eq[F64](42.0, cmd.options("floato").value as F64)
 
 
 class iso _TestShortsAdj is UnitTest
@@ -121,10 +121,10 @@ class iso _TestShortsAdj is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[Bool](true, cmd.flags("boolr").value as Bool)
-    h.assert_eq[String]("--", cmd.flags("stringr").value as String)
-    h.assert_eq[I64](42, cmd.flags("intr").value as I64)
-    h.assert_eq[F64](42.0, cmd.flags("floatr").value as F64)
+    h.assert_eq[Bool](true, cmd.options("boolr").value as Bool)
+    h.assert_eq[String]("--", cmd.options("stringr").value as String)
+    h.assert_eq[I64](42, cmd.options("intr").value as I64)
+    h.assert_eq[F64](42.0, cmd.options("floatr").value as F64)
 
 
 class iso _TestShortsEq is UnitTest
@@ -140,10 +140,10 @@ class iso _TestShortsEq is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[Bool](true, cmd.flags("boolr").value as Bool)
-    h.assert_eq[String]("astring", cmd.flags("stringr").value as String)
-    h.assert_eq[I64](42, cmd.flags("intr").value as I64)
-    h.assert_eq[F64](42.0, cmd.flags("floatr").value as F64)
+    h.assert_eq[Bool](true, cmd.options("boolr").value as Bool)
+    h.assert_eq[String]("astring", cmd.options("stringr").value as String)
+    h.assert_eq[I64](42, cmd.options("intr").value as I64)
+    h.assert_eq[F64](42.0, cmd.options("floatr").value as F64)
 
 
 class iso _TestShortsNext is UnitTest
@@ -161,10 +161,10 @@ class iso _TestShortsNext is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[Bool](true, cmd.flags("boolr").value as Bool)
-    h.assert_eq[String]("--", cmd.flags("stringr").value as String)
-    h.assert_eq[I64](42, cmd.flags("intr").value as I64)
-    h.assert_eq[F64](42.0, cmd.flags("floatr").value as F64)
+    h.assert_eq[Bool](true, cmd.options("boolr").value as Bool)
+    h.assert_eq[String]("--", cmd.options("stringr").value as String)
+    h.assert_eq[I64](42, cmd.options("intr").value as I64)
+    h.assert_eq[F64](42.0, cmd.options("floatr").value as F64)
 
 
 class iso _TestLongsEq is UnitTest
@@ -183,10 +183,10 @@ class iso _TestLongsEq is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[Bool](true, cmd.flags("boolr").value as Bool)
-    h.assert_eq[String]("astring", cmd.flags("stringr").value as String)
-    h.assert_eq[I64](42, cmd.flags("intr").value as I64)
-    h.assert_eq[F64](42.0, cmd.flags("floatr").value as F64)
+    h.assert_eq[Bool](true, cmd.options("boolr").value as Bool)
+    h.assert_eq[String]("astring", cmd.options("stringr").value as String)
+    h.assert_eq[I64](42, cmd.options("intr").value as I64)
+    h.assert_eq[F64](42.0, cmd.options("floatr").value as F64)
 
 
 class iso _TestLongsNext is UnitTest
@@ -205,9 +205,9 @@ class iso _TestLongsNext is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[String]("--", cmd.flags("stringr").value as String)
-    h.assert_eq[I64](42, cmd.flags("intr").value as I64)
-    h.assert_eq[F64](42.0, cmd.flags("floatr").value as F64)
+    h.assert_eq[String]("--", cmd.options("stringr").value as String)
+    h.assert_eq[I64](42, cmd.options("intr").value as I64)
+    h.assert_eq[F64](42.0, cmd.options("floatr").value as F64)
 
 
 class iso _TestEnvs is UnitTest
@@ -231,14 +231,14 @@ class iso _TestEnvs is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[Bool](true, cmd.flags("boolr").value as Bool)
-    h.assert_eq[String]("astring", cmd.flags("stringr").value as String)
-    h.assert_eq[I64](42, cmd.flags("intr").value as I64)
-    h.assert_eq[F64](42.0, cmd.flags("floatr").value as F64)
+    h.assert_eq[Bool](true, cmd.options("boolr").value as Bool)
+    h.assert_eq[String]("astring", cmd.options("stringr").value as String)
+    h.assert_eq[I64](42, cmd.options("intr").value as I64)
+    h.assert_eq[F64](42.0, cmd.options("floatr").value as F64)
 
 
-class iso _TestFlagStop is UnitTest
-  fun name(): String => "ponycli/flag_stop"
+class iso _TestOptionStop is UnitTest
+  fun name(): String => "ponycli/option_stop"
 
   // Rules 2, 3, 5, 7, 9
   fun apply(h: TestHelper) ? =>
@@ -255,7 +255,7 @@ class iso _TestFlagStop is UnitTest
     let cmd = match cmdErr | let c: Command => c else error end
 
     h.assert_eq[String]("-f=1.0", cmd.args("words").value as String)
-    h.assert_eq[F64](42.0, cmd.flags("floato").value as F64)
+    h.assert_eq[F64](42.0, cmd.options("floato").value as F64)
 
 
 class iso _TestChatMin is UnitTest
@@ -291,15 +291,15 @@ class iso _TestChatAll is UnitTest
 
     h.assert_eq[String]("say", cmd.spec.name)
 
-    let f1 = cmd.flags("admin")
+    let f1 = cmd.options("admin")
     h.assert_eq[String]("admin", f1.spec.name)
     h.assert_eq[Bool](true, f1.value as Bool)
 
-    let f2 = cmd.flags("name")
+    let f2 = cmd.options("name")
     h.assert_eq[String]("name", f2.spec.name)
     h.assert_eq[String]("carl", f2.value as String)
 
-    let f3 = cmd.flags("volume")
+    let f3 = cmd.options("volume")
     h.assert_eq[String]("volume", f3.spec.name)
     h.assert_eq[F64](80.0, f3.value as F64)
 
@@ -326,31 +326,31 @@ primitive _Fixtures
 
   fun bools_cli_spec(): CommandSpec box ? =>
     """
-    Builds and returns the spec for a CLI with four bool flags.
+    Builds and returns the spec for a CLI with four bool options.
     """
-    CommandSpec.leaf("bools", "A sample CLI with four bool flags", [
-      FlagSpec.boolT("aaa" where short' = 'a'),
-      FlagSpec.boolT("bbb" where short' = 'b'),
-      FlagSpec.boolT("ccc" where short' = 'c'),
-      FlagSpec.boolT("ddd" where short' = 'd')
+    CommandSpec.leaf("bools", "A sample CLI with four bool options", [
+      OptionSpec.bool("aaa" where short' = 'a'),
+      OptionSpec.bool("bbb" where short' = 'b'),
+      OptionSpec.bool("ccc" where short' = 'c'),
+      OptionSpec.bool("ddd" where short' = 'd')
     ])
 
   fun simple_cli_spec(): CommandSpec box ? =>
     """
-    Builds and returns the spec for a CLI with short flags of each type.
+    Builds and returns the spec for a CLI with short options of each type.
     """
     CommandSpec.leaf("shorts",
-        "A sample program with various short flags, optional and required", [
-      FlagSpec.boolT("boolr" where short' = 'B'),
-      FlagSpec.boolT("boolo" where short' = 'b', default' = true),
-      FlagSpec.stringT("stringr" where short' = 'S'),
-      FlagSpec.stringT("stringo" where short' = 's', default' = "astring"),
-      FlagSpec.i64T("intr" where short' = 'I'),
-      FlagSpec.i64T("into" where short' = 'i', default' = I64(42)),
-      FlagSpec.f64T("floatr" where short' = 'F'),
-      FlagSpec.f64T("floato" where short' = 'f', default' = F64(42.0))
+        "A sample program with various short options, optional and required", [
+      OptionSpec.bool("boolr" where short' = 'B'),
+      OptionSpec.bool("boolo" where short' = 'b', default' = true),
+      OptionSpec.string("stringr" where short' = 'S'),
+      OptionSpec.string("stringo" where short' = 's', default' = "astring"),
+      OptionSpec.i64("intr" where short' = 'I'),
+      OptionSpec.i64("into" where short' = 'i', default' = I64(42)),
+      OptionSpec.f64("floatr" where short' = 'F'),
+      OptionSpec.f64("floato" where short' = 'f', default' = F64(42.0))
     ],[
-      ArgSpec.stringT("words" where default' = "hello")
+      ArgSpec.string("words" where default' = "hello")
     ])
 
   fun chat_cli_spec(): CommandSpec box ? =>
@@ -358,21 +358,21 @@ primitive _Fixtures
     Builds and returns the spec for a sample chat client's CLI.
     """
     CommandSpec.parent("chat", "A sample chat program", [
-      FlagSpec.boolT("admin", "Chat as admin" where default' = false),
-      FlagSpec.stringT("name", "Your name" where short' = 'n'),
-      FlagSpec.f64T("volume", "Chat volume" where short' = 'v')
+      OptionSpec.bool("admin", "Chat as admin" where default' = false),
+      OptionSpec.string("name", "Your name" where short' = 'n'),
+      OptionSpec.f64("volume", "Chat volume" where short' = 'v')
     ],[
-      CommandSpec.leaf("say", "Say something", Array[FlagSpec](), [
-        ArgSpec.stringT("words", "The words to say")
+      CommandSpec.leaf("say", "Say something", Array[OptionSpec](), [
+        ArgSpec.string("words", "The words to say")
       ]),
       CommandSpec.leaf("emote", "Send an emotion", [
-        FlagSpec.f64T("speed", "Emote play speed" where default' = F64(1.0))
+        OptionSpec.f64("speed", "Emote play speed" where default' = F64(1.0))
       ],[
-        ArgSpec.stringT("emotion", "Emote to send")
+        ArgSpec.string("emotion", "Emote to send")
       ]),
-      CommandSpec.parent("config", "Configuration commands", Array[FlagSpec](), [
-        CommandSpec.leaf("server", "Server configuration", Array[FlagSpec](), [
-          ArgSpec.stringT("address", "Address of the server")
+      CommandSpec.parent("config", "Configuration commands", Array[OptionSpec](), [
+        CommandSpec.leaf("server", "Server configuration", Array[OptionSpec](), [
+          ArgSpec.string("address", "Address of the server")
         ])
       ])
     ])

@@ -4,12 +4,12 @@ are specified as a hierarchy.
 See RFC-xxx for more details.
 
 The general EBNF of the command line looks like:
-  command_line ::= root_command (flag* command*)* (flag | arg)*
+  command_line ::= root_command (option | command)* (option | arg)*
   command ::= alphanum_word
   alphanum_word ::= alphachar(alphachar | numchar | '_' | '-')*
-  flag ::= longflag | shortflagset
-  longflag ::= '--'alphanum_word['='arg | ' 'arg]
-  shortflagset := '-'alphachar[alphachar]...['='arg | ' 'arg]
+  option ::= longoption | shortoptionset
+  longoption ::= '--'alphanum_word['='arg | ' 'arg]
+  shortoptionset := '-'alphachar[alphachar]...['='arg | ' 'arg]
   arg := boolarg | intarg | floatarg | stringarg
   boolarg := 'true' | 'false'
   intarg> := ['-'] numchar...
@@ -17,7 +17,7 @@ The general EBNF of the command line looks like:
   stringarg ::= anychar
 
 Some Examples:
-  usage: chat [<flags>] <command> [<flags>] [<args> ...]
+  usage: chat [<options>] <command> [<options>] [<args> ...]
 """
 use col = "collections"
 
@@ -29,31 +29,31 @@ class CommandSpec
 
   - a name: a simple string token that identifies the command.
   - a description: used in the syntax message.
-  - a map of flags: the valid flags for this command.
+  - a map of options: the valid options for this command.
   - one of:
      - a Map of child commands.
      - an Array of arguments.
   """
   let name: String
   let descr: String
-  let flags: col.Map[String, FlagSpec] = flags.create()
+  let options: col.Map[String, OptionSpec] = options.create()
 
   // A parent commands can have sub-commands; leaf commands can have args.
   let commands: col.Map[String, CommandSpec box] = commands.create()
   let args: Array[ArgSpec] = args.create()
 
   new parent(name': String, descr': String = "",
-    flags': Array[FlagSpec] box = Array[FlagSpec](),
+    options': Array[OptionSpec] box = Array[OptionSpec](),
     commands': Array[CommandSpec] box = Array[CommandSpec]()) ?
   =>
     """
-    Create a command spec that can accept flags and child commands, but not
+    Create a command spec that can accept options and child commands, but not
     arguments.
     """
     name = _assertName(name')
     descr = descr'
-    for f in flags'.values() do
-      flags.update(f.name, f)
+    for o in options'.values() do
+      options.update(o.name, o)
     end
     for c in commands'.values() do
       commands.update(c.name, c)
@@ -61,17 +61,17 @@ class CommandSpec
     // TODO(cq) init args with an immutable empty array?
 
   new leaf(name': String, descr': String = "",
-    flags': Array[FlagSpec] box = Array[FlagSpec](),
+    options': Array[OptionSpec] box = Array[OptionSpec](),
     args': Array[ArgSpec] box = Array[ArgSpec]()) ?
   =>
     """
-    Create a command spec that can accept flags and arguments, but not child
+    Create a command spec that can accept options and arguments, but not child
     commands.
     """
     name = _assertName(name')
     descr = descr'
-    for f in flags'.values() do
-      flags.update(f.name, f)
+    for f in options'.values() do
+      options.update(f.name, f)
     end
     for a in args'.values() do
       args.push(a)
@@ -101,8 +101,8 @@ class CommandSpec
     Add a standard help command to this parent command.
     """
     if args.size() > 0 then error end
-    let help = CommandSpec.leaf("help", "", Array[FlagSpec](), [
-      ArgSpec.stringT("command" where default'="")
+    let help = CommandSpec.leaf("help", "", Array[OptionSpec](), [
+      ArgSpec.string("command" where default'="")
     ])
     commands.update(help.name, help)
 
@@ -115,9 +115,12 @@ class CommandSpec
     s
 
 
-class box FlagSpec
+class val OptionSpec
   """
-  FlagSpec describes the specification of a flag.
+  OptionSpec describes the specification of an option. Options have a name,
+  descr(iption), a short-name, a typ(e), and a default value when they are not
+  required. Options can be placed anywhere before or after commands, and can be
+  thought of like named arguments.
   """
   let name: String
   let descr: String
@@ -136,7 +139,7 @@ class box FlagSpec
       (typ', default' as Value, false)
     end
 
-  new box boolT(name': String, descr': String = "",
+  new val bool(name': String, descr': String = "",
     short': (U8 | None) = None, default': (Bool | None) = None) ?
   =>
     name = name'
@@ -144,7 +147,7 @@ class box FlagSpec
     short = short'
     (typ, default, required) = _init(BoolType, default')
 
-  new box stringT(name': String, descr': String = "",
+  new val string(name': String, descr': String = "",
     short': (U8 | None) = None, default': (String | None) = None) ?
   =>
     name = name'
@@ -152,7 +155,7 @@ class box FlagSpec
     short = short'
     (typ, default, required) = _init(StringType, default')
 
-  new box i64T(name': String, descr': String = "",
+  new val i64(name': String, descr': String = "",
     short': (U8 | None) = None, default': (I64 | None) = None) ?
   =>
     name = name'
@@ -160,7 +163,7 @@ class box FlagSpec
     short = short'
     (typ, default, required) = _init(I64Type, default')
 
-  new box f64T(name': String, descr': String = "",
+  new val f64(name': String, descr': String = "",
     short': (U8 | None) = None, default': (F64 | None) = None) ?
   =>
     name = name'
@@ -168,12 +171,12 @@ class box FlagSpec
     short = short'
     (typ, default, required) = _init(F64Type, default')
 
-  // Other than bools, all flags require args.
+  // Other than bools, all options require args.
   fun _requires_arg(): Bool =>
     match typ |(let b: BoolType) => false else true end
     // TODO: why can't Pony match on just type? |BoolType=>...
 
-  // Used for bool flags to get the true arg when flag is present w/o arg
+  // Used for bool options to get the true arg when option is present w/o arg
   fun _default_arg(): Value =>
     match typ |(let b: BoolType) => true else false end
 
@@ -184,7 +187,7 @@ class box FlagSpec
       false
     end
 
-  fun string(): String =>
+  fun deb_string(): String =>
     "--" + name + "[" + typ.string() + "]" +
       if not required then "(=" + default.string() + ")" else "" end
 
@@ -198,9 +201,10 @@ class box FlagSpec
     s + l
 
 
-class box ArgSpec
+class val ArgSpec
   """
-  ArgSpec describes the specification of a positional argument.
+  ArgSpec describes the specification of a positional argument. Args always
+  come after a leaf command, and are assigned in their positional order.
   """
   let name: String
   let descr: String
@@ -219,31 +223,31 @@ class box ArgSpec
       (typ', default' as Value, false)
     end
 
-  new box boolT(name': String, descr': String="", default': (Bool|None)=None) ?
+  new val bool(name': String, descr': String="", default': (Bool|None)=None) ?
   =>
     name = name'
     descr = descr'
     (typ, default, required) = _init(BoolType, default')
 
-  new box stringT(name': String, descr': String="", default': (String|None)=None) ?
+  new val string(name': String, descr': String="", default': (String|None)=None) ?
   =>
     name = name'
     descr = descr'
     (typ, default, required) = _init(StringType, default')
 
-  new box i64T(name': String, descr': String="", default': (I64|None)=None) ?
+  new val i64(name': String, descr': String="", default': (I64|None)=None) ?
   =>
     name = name'
     descr = descr'
     (typ, default, required) = _init(I64Type, default')
 
-  new box f64T(name': String, descr': String="", default': (F64|None)=None) ?
+  new val f64(name': String, descr': String="", default': (F64|None)=None) ?
   =>
     name = name'
     descr = descr'
     (typ, default, required) = _init(F64Type, default')
 
-  fun string(): String =>
+  fun deb_string(): String =>
     name + "[" + typ.string() + "]" +
       if not required then "(=" + default.string() + ")" else "" end
 
