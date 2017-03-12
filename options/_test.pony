@@ -17,6 +17,7 @@ actor Main is TestList
     test(_TestLongsNext)
     test(_TestEnvs)
     test(_TestOptionStop)
+    test(_TestDuplicate)
     test(_TestChatMin)
     test(_TestChatAll)
     test(_TestHelp)
@@ -256,6 +257,26 @@ class iso _TestOptionStop is UnitTest
 
     h.assert_eq[String]("-f=1.0", cmd.args("words").value as String)
     h.assert_eq[F64](42.0, cmd.options("floato").value as F64)
+
+
+class iso _TestDuplicate is UnitTest
+  fun name(): String => "ponycli/duplicate"
+
+  // Rules 4, 5, 7, 10
+  fun apply(h: TestHelper) ? =>
+    let cs = _Fixtures.simple_cli_spec()
+
+    let args: Array[String] = [
+        "ignored",
+        "--boolr=true", "--stringr=astring", "--intr=42", "--floatr=42.0",
+        "--stringr=newstring"
+    ]
+    let cmdErr = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmdErr.string())
+
+    let cmd = match cmdErr | let c: Command => c else error end
+
+    h.assert_eq[String]("newstring", cmd.options("stringr").value as String)
 
 
 class iso _TestChatMin is UnitTest
