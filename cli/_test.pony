@@ -33,7 +33,7 @@ class iso _TestMinimal is UnitTest
 
     h.assert_eq[String]("minimal", cs.name)
 
-    let args: Array[String] = ["ignored", "--aflag=true"]
+    let args: Array[String] = ["ignored"; "--aflag=true"]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
 
@@ -62,7 +62,7 @@ class iso _TestHyphenArg is UnitTest
     let cs = CommandSpec.leaf("minimal" where args' = [
         ArgSpec.string("name", "")
     ])
-    let args: Array[String] = ["ignored", "-"]
+    let args: Array[String] = ["ignored"; "-"]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
 
@@ -78,7 +78,7 @@ class iso _TestBools is UnitTest
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.bools_cli_spec()
 
-    let args: Array[String] = ["ignored", "-ab", "-c=true", "-d=false"]
+    let args: Array[String] = ["ignored"; "-ab"; "-c=true"; "-d=false"]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
 
@@ -97,7 +97,7 @@ class iso _TestDefaults is UnitTest
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()
 
-    let args: Array[String] = ["ignored", "-B", "-S--", "-I42", "-F42.0"]
+    let args: Array[String] = ["ignored"; "-B"; "-S--"; "-I42"; "-F42.0"]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
 
@@ -116,7 +116,7 @@ class iso _TestShortsAdj is UnitTest
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()
 
-    let args: Array[String] = ["ignored", "-BS--", "-I42", "-F42.0"]
+    let args: Array[String] = ["ignored"; "-BS--"; "-I42"; "-F42.0"]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
 
@@ -135,7 +135,7 @@ class iso _TestShortsEq is UnitTest
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()
 
-    let args: Array[String] = ["ignored", "-BS=astring", "-I=42", "-F=42.0"]
+    let args: Array[String] = ["ignored"; "-BS=astring"; "-I=42"; "-F=42.0"]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
 
@@ -155,7 +155,7 @@ class iso _TestShortsNext is UnitTest
     let cs = _Fixtures.simple_cli_spec()
 
     let args: Array[String] = [
-        "ignored", "-BS", "--", "-I", "42", "-F", "42.0"
+        "ignored"; "-BS"; "--"; "-I"; "42"; "-F"; "42.0"
     ]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
@@ -176,8 +176,8 @@ class iso _TestLongsEq is UnitTest
     let cs = _Fixtures.simple_cli_spec()
 
     let args: Array[String] = [
-        "ignored",
-        "--boolr=true", "--stringr=astring", "--intr=42", "--floatr=42.0"
+        "ignored"
+        "--boolr=true"; "--stringr=astring"; "--intr=42"; "--floatr=42.0"
     ]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
@@ -198,8 +198,8 @@ class iso _TestLongsNext is UnitTest
     let cs = _Fixtures.simple_cli_spec()
 
     let args: Array[String] = [
-        "ignored",
-        "--boolr", "--stringr", "--", "--intr", "42", "--floatr", "42.0"
+        "ignored"
+        "--boolr"; "--stringr"; "--"; "--intr"; "42"; "--floatr"; "42.0"
     ]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
@@ -222,9 +222,9 @@ class iso _TestEnvs is UnitTest
       "ignored"
     ]
     let envs: Array[String] = [
-      "BOOLR=true",
-      "STRINGR=astring",
-      "INTR=42",
+      "BOOLR=true"
+      "STRINGR=astring"
+      "INTR=42"
       "FLOATR=42.0"
     ]
     let cmdErr = CommandParser(cs).parse(args, envs)
@@ -246,9 +246,9 @@ class iso _TestOptionStop is UnitTest
     let cs = _Fixtures.simple_cli_spec()
 
     let args: Array[String] = [
-      "ignored",
-      "-BS=astring", "-I=42", "-F=42.0",
-      "--", "-f=1.0"
+      "ignored"
+      "-BS=astring"; "-I=42"; "-F=42.0"
+      "--"; "-f=1.0"
     ]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
@@ -267,8 +267,8 @@ class iso _TestDuplicate is UnitTest
     let cs = _Fixtures.simple_cli_spec()
 
     let args: Array[String] = [
-        "ignored",
-        "--boolr=true", "--stringr=astring", "--intr=42", "--floatr=42.0",
+        "ignored"
+        "--boolr=true"; "--stringr=astring"; "--intr=42"; "--floatr=42.0"
         "--stringr=newstring"
     ]
     let cmdErr = CommandParser(cs).parse(args)
@@ -285,7 +285,7 @@ class iso _TestChatMin is UnitTest
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.chat_cli_spec()
 
-    let args: Array[String] = ["ignored", "--name=me", "--volume=42"]
+    let args: Array[String] = ["ignored"; "--name=me"; "--volume=42"]
 
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
@@ -301,8 +301,8 @@ class iso _TestChatAll is UnitTest
     let cs = _Fixtures.chat_cli_spec()
 
     let args: Array[String] = [
-        "ignored",
-        "--admin", "--name=carl", "say", "-v80", "hello"
+        "ignored"
+        "--admin"; "--name=carl"; "say"; "-v80"; "hello"
     ]
 
     let cmdErr = CommandParser(cs).parse(args)
@@ -335,7 +335,7 @@ class iso _TestHelp is UnitTest
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.chat_cli_spec()
 
-    let chErr = Help.for_command(cs, ["config", "server"])
+    let chErr = Help.for_command(cs, ["config"; "server"])
     let ch = match chErr | let c: CommandHelp => c else error end
 
     let help = ch.help_string()
@@ -350,9 +350,9 @@ primitive _Fixtures
     Builds and returns the spec for a CLI with four bool options.
     """
     CommandSpec.leaf("bools", "A sample CLI with four bool options", [
-      OptionSpec.bool("aaa" where short' = 'a'),
-      OptionSpec.bool("bbb" where short' = 'b'),
-      OptionSpec.bool("ccc" where short' = 'c'),
+      OptionSpec.bool("aaa" where short' = 'a')
+      OptionSpec.bool("bbb" where short' = 'b')
+      OptionSpec.bool("ccc" where short' = 'c')
       OptionSpec.bool("ddd" where short' = 'd')
     ])
 
@@ -362,13 +362,13 @@ primitive _Fixtures
     """
     CommandSpec.leaf("shorts",
         "A sample program with various short options, optional and required", [
-      OptionSpec.bool("boolr" where short' = 'B'),
-      OptionSpec.bool("boolo" where short' = 'b', default' = true),
-      OptionSpec.string("stringr" where short' = 'S'),
-      OptionSpec.string("stringo" where short' = 's', default' = "astring"),
-      OptionSpec.i64("intr" where short' = 'I'),
-      OptionSpec.i64("into" where short' = 'i', default' = I64(42)),
-      OptionSpec.f64("floatr" where short' = 'F'),
+      OptionSpec.bool("boolr" where short' = 'B')
+      OptionSpec.bool("boolo" where short' = 'b', default' = true)
+      OptionSpec.string("stringr" where short' = 'S')
+      OptionSpec.string("stringo" where short' = 's', default' = "astring")
+      OptionSpec.i64("intr" where short' = 'I')
+      OptionSpec.i64("into" where short' = 'i', default' = I64(42))
+      OptionSpec.f64("floatr" where short' = 'F')
       OptionSpec.f64("floato" where short' = 'f', default' = F64(42.0))
     ],[
       ArgSpec.string("words" where default' = "hello")
@@ -379,18 +379,18 @@ primitive _Fixtures
     Builds and returns the spec for a sample chat client's CLI.
     """
     CommandSpec.parent("chat", "A sample chat program", [
-      OptionSpec.bool("admin", "Chat as admin" where default' = false),
-      OptionSpec.string("name", "Your name" where short' = 'n'),
+      OptionSpec.bool("admin", "Chat as admin" where default' = false)
+      OptionSpec.string("name", "Your name" where short' = 'n')
       OptionSpec.f64("volume", "Chat volume" where short' = 'v')
     ],[
       CommandSpec.leaf("say", "Say something", Array[OptionSpec](), [
         ArgSpec.string("words", "The words to say")
-      ]),
+      ])
       CommandSpec.leaf("emote", "Send an emotion", [
         OptionSpec.f64("speed", "Emote play speed" where default' = F64(1.0))
       ],[
         ArgSpec.string("emotion", "Emote to send")
-      ]),
+      ])
       CommandSpec.parent("config", "Configuration commands", Array[OptionSpec](), [
         CommandSpec.leaf("server", "Server configuration", Array[OptionSpec](), [
           ArgSpec.string("address", "Address of the server")
